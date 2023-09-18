@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Austin Digital Twin</title>
+<script src="https://cesium.com/downloads/cesiumjs/releases/1.105.1/Build/Cesium/Cesium.js"></script>
+<link href="https://cesium.com/downloads/cesiumjs/releases/1.105.1/Build/Cesium/Widgets/widgets.css" rel="stylesheet"/>
+<link href="https://smartcity.tacc.utexas.edu/FireIncident/Demo3D/assets/css/fireMap.css" rel="stylesheet"/>
+<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css" rel="stylesheet"/>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/cesium-plugin/cesium-popup-es6@main/dist/cesium-popup-es6.umd.js"></script>
+<link href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet"/>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css" rel="stylesheet"/>
+<link href="styles.css" rel="stylesheet"/>
+<link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet"/><link href="gmaps-sidebar.css" rel="stylesheet">
+<style>
+        body {
+            padding: 0;
+            margin: 0;
+        }
+
+        html, body, #map {
+            height: 100%;
+            font: 10pt "Helvetica Neue", Arial, Helvetica, sans-serif;
+        }
+
+        .lorem {
+            font-style: italic;
+            color: #AAA;
+        }
+    </style>
+</link>
+<style>
+    .oval-button {
+        border-radius: 32px;
+        padding: 6px 17px;
+        margin: 5px;
+        cursor: pointer;
+        /* background-color: #4285f4; */
+        /* color: white; */
+        border: none;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2), 0 -1px 0px rgba(0,0,0,0.02);
+        border: none;
+        background: #fff;
+        color: #202124;
+
+        /* font-family: "Google Sans",Roboto,Arial,sans-serif; */
+        /* line-height: 1.25rem; */
+        font-size: 0.875rem;
+        /* letter-spacing: 0; */
+        font-weight: 500;
+    }
+
+
+/* Make the geocoder input field permanently open */
+.cesium-geocoder-input {
+  /* width: 300px !important;   */
+  width: 70% !important;  
+}
+
+/* Place it at the top-left corner */
+.cesium-viewer-geocoderContainer {
+  position: fixed;
+  top: 10px;
+  left: 90px;
+  z-index: 10000;  /* to ensure it appears above other elements */
+
+  background: #fff;
+    border-radius: 24px;
+    box-sizing: border-box;
+    width: 376px;
+    height: 48px;
+
+    border-bottom: 1px solid #dadce0;
+    box-shadow: 0 0 2px rgb(0 0 0/20%), 0 -1px 0 rgb(0 0 0/2%);
+
+}
+
+/* Google-esque Style */
+.cesium-viewer-geocoderContainer .cesium-geocoder-input {
+  /* border-radius: 25px; */
+  background: white;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+
+  margin-top: 8px;
+    background-color: white;
+    margin-left: 20px;
+    border-color: white;
+    color: black;
+
+    box-shadow:unset;
+    border:none;
+    padding:0;
+
+}
+
+.cesium-viewer-geocoderContainer .cesium-geocoder-input:hover {
+  /* border-radius: 25px; */
+  background: white;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+
+  margin-top: 8px;
+    background-color: white;
+    margin-left: 20px;
+    border-color: white;
+    color: black;
+
+    box-shadow:unset;
+    border:none;
+    left:unset !important;
+    padding:0 !important;
+}
+
+.cesium-viewer-geocoderContainer .cesium-geocoder-input:focus {
+  /* border-radius: 25px; */
+  background: white;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+
+  margin-top: 8px;
+    background-color: white;
+    margin-left: 20px;
+    border-color: white;
+    color: black;
+
+    box-shadow:unset;
+    border:none;
+}
+.cesium-geocoder-input:focus {
+  /* border-radius: 25px; */
+  background: white;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+
+  margin-top: 8px;
+    background-color: white;
+    margin-left: 20px;
+    border-color: white;
+    color: black;
+
+    box-shadow:unset;
+    border:none;
+    padding:0;
+    margin-left:unset;
+    margin:unset;
+}
+
+.cesium-geocoder-searchButton {
+    fill: #666;
+    background-color: white;
+    top: 7px;
+    right: 15px;
+    border-radius: 50%;
+    width: 23px;
+}
+
+.cesium-geocoder-searchButton:hover {
+    fill: #4285f4;
+    background-color: white;
+    top: 7px;
+    right: 15px;
+    border-radius: 50%;
+    width: 23px;
+}
+
+.cesium-viewer-geocoderContainer .search-results {
+    opacity: 1;
+    color: black;
+    background-color: #fff;
+    border-radius: 0 0 16px 16px;
+    box-shadow: 0 2px 4px rgba(0,0,0,.2);
+    font-size: 15px;
+    overflow: visible;
+    width: 376px;
+    padding: 8px 0;
+    margin-top: 8px;
+}
+
+.cesium-viewer-geocoderContainer .search-results ul li {
+
+    line-height: 24px;
+    padding: 3px 10px;
+    height: 30px;
+    border: none;
+    position: relative;
+    font-size: 12px;
+    min-height: 34px;
+    padding-top: 6px;
+    padding-bottom: 7px;
+    cursor: pointer;
+    direction: ltr;
+    text-align: left;
+
+}
+
+.cesium-viewer-geocoderContainer .search-results ul li:hover {
+
+background-color: #66666627;
+
+}
+
+
+.cesium-viewer-geocoderContainer .search-results ul li:focus {
+
+background-color: #66666627;
+
+}
+
+.cesium-viewer-geocoderContainer .search-results ul li.active {
+
+/* background-color: unset; */
+}
+
+
+.cesium-viewer-geocoderContainer:hover .cesium-geocoder-input,
+.cesium-viewer-geocoderContainer .cesium-geocoder-input:focus,
+.cesium-viewer-geocoderContainer .cesium-geocoder-input-wide {
+  padding-left: unset;
+  width: unset;
+}
+
+</style>
+</head>
+<body>
+
+
+    <div id="sidebar" class="sidebar collapsed">
+        <!-- Nav tabs -->
+        <div class="sidebar-tabs">
+            <ul role="tablist">
+                <li><a href="#home" role="tab"><i class="fa fa-bars" style="
+                    font-size: 1.1em;
+                "></i></a></li>
+                <li><a href="#profile" role="tab" style="
+                    display: flex;
+                    flex-direction: column;
+                "><i class="fa fa-clock-o" style="
+                    height: 1px;
+                    margin-top: 15px;
+                    font-size: 1.3em;
+                "></i> <i style="
+                    font-size: 12px;
+                    font-style: normal;
+                    font-weight: 700;
+                ">Recent</i></a></li>
+
+                <li><a href="#profile" role="tab" style="
+                    display: flex;
+                    flex-direction: column;
+                "><i class="fa fa-exclamation-triangle" style="
+                    height: 1px;
+                    margin-top: 15px;
+                    font-size: 1.3em;
+                "></i> <i style="
+                    font-size: 12px;
+                    font-style: normal;
+                    font-weight: 700;
+                ">Important</i></a></li>
+
+                <!-- <li><a href="#profile" role="tab"><i class="fa fa-user"></i></a></li> -->
+                <!-- <li class="disabled"><a href="#messages" role="tab"><i class="fa fa-envelope"></i></a></li> -->
+                <!-- <li><a href="https://github.com/Turbo87/sidebar-v2" role="tab" target="_blank"><i class="fa fa-github"></i></a></li> -->
+            </ul>
+
+            <ul role="tablist">
+                <li><a href="#settings" role="tab"><i class="fa fa-gear"></i></a></li>
+            </ul>
+        </div>
+
+        <!-- Tab panes -->
+        <div class="sidebar-content">
+            <div class="sidebar-pane" id="home">
+                <h1 class="sidebar-header">
+                    <span class="sidebar-close"><i class="fa fa-caret-left"></i></span>
+                </h1>
+
+                <div class="accordion" id="eventsAccordion">
+                </div>
+
+
+            </div>
+
+            <div class="sidebar-pane" id="profile">
+                <h1 class="sidebar-header">
+                    <span class="sidebar-close">
+                        <i class="fa fa-caret-left">
+
+                        </i>
+                    </span>
+                </h1>
+                
+            </div>
+
+            <div class="sidebar-pane" id="messages">
+                <h1 class="sidebar-header">
+                    <span class="sidebar-close">
+                        <i class="fa fa-caret-left">
+
+                        </i>
+                    </span>
+                </h1>
+            </div>
+
+            <div class="sidebar-pane" id="settings">
+                <h1 class="sidebar-header">
+                    <span class="sidebar-close">
+                        <i class="fa fa-caret-left">
+
+                        </i>
+                    </span>
+                </h1>
+
+                <div style="vertical-align: middle;">
+                <div style="margin-top:40px;display:flex;justify-content: center;">
+                <img class="top-logo" width="250px;" alt="Urban Information Lab at UT Austin" src="https://sites.utexas.edu/uil/files/2022/12/UTlogo2.png" >
+                </div>
+                <h3 style="margin-top:40px; font-weight: 700;">About the Urban Info Lab</h3>
+                <p>The Urban Information Lab (UIL) is a research group at the University of Texas at Austin that focuses on the development of data-driven solutions to urban problems. UIL is a part of the School of Architecture and the Center for Sustainable Development at the University of Texas at Austin.</p>
+                <p>For more information, visit <a href="https://sites.utexas.edu/uil/">https://sites.utexas.edu/uil/</a></p>
+                <h3 style="margin-top:20px; font-weight: 700;">About the Austin Digital Twin</h3>
+                <p>The Austin Digital Twin is a 3D model of the city of Austin, Texas. It is a research project of the Urban Information Lab at the University of Texas at Austin.</p>
+                <p>For more information, visit <a href="https://austindigitaltwin.com/">https://austindigitaltwin.com</a></p>
+                <h3 style="margin-top:20px; font-weight: 700;">Contact</h3>
+                <p>For questions or comments, please <a href="https://sites.utexas.edu/uil/contact-us/">contact us</a>.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- <div id="map" class="sidebar-map"></div> -->
+    <div id="cesiumContainer" style="position: absolute;width: 100%;height:100%;"></div>
+
+    <script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+    <script src="https://maps.googleapis.com/maps/api/js" type="text/javascript"></script>
+    <script src="jquery-sidebar.js"></script>
+
+    <script>
+        var sidebar = $('#sidebar').sidebar();
+    </script>
+
+
+
+<!-- <div id="cesiumContainer" style="position: absolute;width: 100%;height:100%;"></div> -->
+
+<!--
+<div class="sidebar closed" id="sidebar">
+<div class="header">
+<h1 style="font-size: 1.2rem;"><i cl<div id="cesiumContainer" style="position: absolute;width: 100%;height:100%;"></div>
+ass="fas fa-city" style="margin-right: 10px;font-size: large;"></i>
+                Austin Digital Twin</h1>
+</div>
+<h2 style="font-size: 1.1rem;margin-bottom: 20px;">Recent Events</h2>
+<div class="accordion" id="eventsAccordion">
+</div>
+</div>
+-->
+
+
+<div style="    position: absolute;
+top: 15px;
+left: 510px; z-index: 999;">
+<button class="oval-button" id="btnFires">
+    <img src="firelogo.png" class="button-image">
+    <div class="button-text">Fires</div>
+</button>
+<button class="oval-button" id="btnCrimes">
+    <img src="crime.png" class="button-image">
+    <div class="button-text">Crimes</div>
+</button>
+<button class="oval-button" id="btnAirSensors">
+    <img src="sensor.png" class="button-image">
+    <div class="button-text">Air Sensors</div>
+</button>
+</div>
+
+
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+<script src="main.js"></script>
+<script src="cesium.js"></script>
+
+</body>
+</html>
