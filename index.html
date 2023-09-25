@@ -15,6 +15,10 @@
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css" rel="stylesheet"/>
 <link href="styles.css" rel="stylesheet"/>
 <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet"/><link href="gmaps-sidebar.css" rel="stylesheet">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
         body {
             padding: 0;
@@ -51,6 +55,10 @@
         font-size: 0.875rem;
         /* letter-spacing: 0; */
         font-weight: 500;
+    }
+
+    .oval-button:hover {
+        background-color: #dbeaff;
     }
 
 
@@ -148,19 +156,32 @@
 .cesium-geocoder-searchButton {
     fill: #666;
     background-color: white;
-    top: 7px;
-    right: 15px;
+    /* top: 7px; */
+    /* right: 15px; */
     border-radius: 50%;
     width: 23px;
+
+    opacity: 1;
+    display: block;
+    position: absolute;
+    background-color: unset;
+    border: none;
+
+
+    margin-left: 0px;
+    margin-top: 5px;
+    position: relative;
+    display: inline-block;
+
 }
 
 .cesium-geocoder-searchButton:hover {
     fill: #4285f4;
     background-color: white;
-    top: 7px;
-    right: 15px;
-    border-radius: 50%;
-    width: 23px;
+    /* top: 7px; */
+    /* right: 15px; */
+    /* border-radius: 50%; */
+    /* width: 23px; */
 }
 
 .cesium-viewer-geocoderContainer .search-results {
@@ -219,6 +240,30 @@ background-color: #66666627;
   width: unset;
 }
 
+.close-button-div {
+    cursor: pointer;
+    margin-left: 5px;
+    vertical-align: middle;
+    margin-top: 7px;
+    margin-left: 20px;
+    opacity: 1;
+    border: none;
+    fill: #666;
+}
+
+.close-button-div:hover, .back-button-div:hover {
+    cursor: pointer;
+    fill: #4285f4;
+    background-color: white;
+}
+
+.close-button-div:hover .close-button path, .back-button-div:hover .back-button path {
+    fill: #4285f4;   /* or any other color you want on hover */
+    stroke: #4285f4; /* if you also want to change the stroke color on hover */
+}
+
+
+
 </style>
 </head>
 <body>
@@ -231,7 +276,7 @@ background-color: #66666627;
                 <li><a href="#home" role="tab"><i class="fa fa-bars" style="
                     font-size: 1.1em;
                 "></i></a></li>
-                <li><a href="#profile" role="tab" style="
+                <li><a id="recent" href="#profile" role="tab" style="
                     display: flex;
                     flex-direction: column;
                 "><i class="fa fa-clock-o" style="
@@ -244,7 +289,7 @@ background-color: #66666627;
                     font-weight: 700;
                 ">Recent</i></a></li>
 
-                <li><a href="#profile" role="tab" style="
+                <li><a id="important" href="#messages" role="tab" style="
                     display: flex;
                     flex-direction: column;
                 "><i class="fa fa-exclamation-triangle" style="
@@ -256,6 +301,7 @@ background-color: #66666627;
                     font-style: normal;
                     font-weight: 700;
                 ">Important</i></a></li>
+
 
                 <!-- <li><a href="#profile" role="tab"><i class="fa fa-user"></i></a></li> -->
                 <!-- <li class="disabled"><a href="#messages" role="tab"><i class="fa fa-envelope"></i></a></li> -->
@@ -269,9 +315,8 @@ background-color: #66666627;
 
         <!-- Tab panes -->
         <div class="sidebar-content">
-            <div class="sidebar-pane" id="home">
+            <div class="sidebar-pane active" id="home">
                 <h1 class="sidebar-header">
-                    <span class="sidebar-close"><i class="fa fa-caret-left"></i></span>
                 </h1>
 
                 <div class="accordion" id="eventsAccordion">
@@ -282,35 +327,26 @@ background-color: #66666627;
 
             <div class="sidebar-pane" id="profile">
                 <h1 class="sidebar-header">
-                    <span class="sidebar-close">
-                        <i class="fa fa-caret-left">
-
-                        </i>
-                    </span>
                 </h1>
                 
             </div>
 
             <div class="sidebar-pane" id="messages">
                 <h1 class="sidebar-header">
-                    <span class="sidebar-close">
-                        <i class="fa fa-caret-left">
-
-                        </i>
-                    </span>
                 </h1>
+            </div>
+
+            <div class="sidebar-pane" id="event">
+                <h1 class="sidebar-header">
+                </h1>
+
             </div>
 
             <div class="sidebar-pane" id="settings">
                 <h1 class="sidebar-header">
-                    <span class="sidebar-close">
-                        <i class="fa fa-caret-left">
-
-                        </i>
-                    </span>
                 </h1>
 
-                <div style="vertical-align: middle;">
+                <div style="vertical-align: middle; padding: 0px 50px 50px 50px; font-family:'Open Sans', sans-serif;">
                 <div style="margin-top:40px;display:flex;justify-content: center;">
                 <img class="top-logo" width="250px;" alt="Urban Information Lab at UT Austin" src="https://sites.utexas.edu/uil/files/2022/12/UTlogo2.png" >
                 </div>
@@ -330,30 +366,9 @@ background-color: #66666627;
     <!-- <div id="map" class="sidebar-map"></div> -->
     <div id="cesiumContainer" style="position: absolute;width: 100%;height:100%;"></div>
 
-    <script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
-    <script src="https://maps.googleapis.com/maps/api/js" type="text/javascript"></script>
-    <script src="jquery-sidebar.js"></script>
-
-    <script>
-        var sidebar = $('#sidebar').sidebar();
-    </script>
 
 
 
-<!-- <div id="cesiumContainer" style="position: absolute;width: 100%;height:100%;"></div> -->
-
-<!--
-<div class="sidebar closed" id="sidebar">
-<div class="header">
-<h1 style="font-size: 1.2rem;"><i cl<div id="cesiumContainer" style="position: absolute;width: 100%;height:100%;"></div>
-ass="fas fa-city" style="margin-right: 10px;font-size: large;"></i>
-                Austin Digital Twin</h1>
-</div>
-<h2 style="font-size: 1.1rem;margin-bottom: 20px;">Recent Events</h2>
-<div class="accordion" id="eventsAccordion">
-</div>
-</div>
--->
 
 
 <div style="    position: absolute;
@@ -379,6 +394,21 @@ left: 510px; z-index: 999;">
 <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
 <script src="main.js"></script>
 <script src="cesium.js"></script>
+
+<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+<script src="https://maps.googleapis.com/maps/api/js" type="text/javascript"></script>
+<script src="jquery-sidebar.js"></script>
+
+<script>
+    var sidebar = $('#sidebar').sidebar();
+
+    // Get .close-button and use it to call the close method
+    console.log($('.close-button-div'));
+    $('.close-button-div').on('click', function() {
+        console.log('close');
+        sidebar.close();
+    });
+</script>
 
 </body>
 </html>

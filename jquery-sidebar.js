@@ -31,9 +31,14 @@ $.fn.sidebar = function(options) {
             $sidebar.open(this.hash.slice(1), $tab);
     });
 
-    $sidebar.find('.sidebar-close').on('click', function() {
-        $sidebar.close();
-    });
+    // $sidebar.find('.sidebar-close').on('click', function() {
+    //     $sidebar.close();
+    // });
+
+    // $('.close-button').on('click', function() {
+    //     console.log('close button clicked');
+    //     $sidebar.close();
+    // });
 
     /**
      * Open sidebar (if necessary) and show the specified tab.

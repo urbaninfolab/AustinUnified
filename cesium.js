@@ -275,18 +275,6 @@ fetch('https://smartcity.tacc.utexas.edu/FireIncident/data/2022-08-08-FireMap.js
         }
         runGetPurpleAirOnce = true;
 
-        let sampleData = [
-            {
-                "link": "https://map.purpleair.com/1/mAQI/a10/p604800/cC0?key=4Z0L6SM6TMMYSTX0&select=27519#14/30.28559/-97.73693",
-                "active_status": "yes"
-            },
-            {
-                "link": "https://map.purpleair.com/1/mAQI/a10/p604800/cC0?key=4Z0L6SM6TMMYSTX0&select=27569#13.69/30.28233/-97.72709",
-                "active_status": "yes"
-            },
-        ];
-
-
         if(airData.length == 0) {
             let cities = {
                 "":[30.747879,29.978325,-98.056977,-97.357011],
@@ -306,6 +294,8 @@ fetch('https://smartcity.tacc.utexas.edu/FireIncident/data/2022-08-08-FireMap.js
             airData = rawwData;
 
             console.log(airData);
+
+            window.purpleairdata = airData;
 
         }
 
@@ -590,5 +580,63 @@ viewer.screenSpaceEventHandler.setInputAction(function (event) {
         
         // Configure the observer to watch for changes in the style attribute
         observer.observe(searchResults, { attributes: true });
+
+
+        // Get .cesium-geocoder-searchButton and add class tooltip
+        const searchButton = geocoderContainer.getElementsByClassName("cesium-geocoder-searchButton")[0];
+        searchButton.classList.add("tooltip");
+        // Add span element with tooltip text
+        const span = document.createElement("span");
+        span.classList.add("tooltiptext");
+        span.classList.add("tooltip-bottom");
+        span.textContent = "Search";
+
+        // Add the span element to the search button
+        searchButton.appendChild(span);
+
+
+        // Create a div for the X button
+        const xButtonDiv = document.createElement("div");
+        xButtonDiv.classList.add("close-button-div");
+
+        // Create the SVG for the X icon
+        const xButton = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        xButton.setAttribute("width", "32");
+        xButton.setAttribute("height", "32");
+        xButton.setAttribute("viewBox", "0 0 32 32");
+        xButton.classList.add("close-button");  // A class to style the X button
+
+        const xPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        xPath.setAttribute("d", "M8 8 L24 24 M24 8 L8 24");
+        xPath.setAttribute("stroke", "#666");
+        xPath.setAttribute("stroke-width", "3");
+        xPath.setAttribute("fill", "#666");
+
+        xButton.appendChild(xPath);
+        xButtonDiv.appendChild(xButton);
+
+        // Add the X button div after the searchButton, inside the form
+        const form = geocoderContainer.getElementsByTagName("form")[0];
+        form.appendChild(xButtonDiv);
+
+        // Add tooltip to the X button div
+        xButtonDiv.classList.add("tooltip");
+        const span2 = document.createElement("span");
+        span2.classList.add("tooltiptext");
+        span2.classList.add("tooltip-bottom");
+        span2.textContent = "Close";
+        xButtonDiv.appendChild(span2);
+
+
+        xButtonDiv.onclick = function() {
+            // prevent the default
+            event.preventDefault();
+            sidebar.close();
+        }
+
+        // Adjust the search button's positioning (if required)
+        searchButton.style.marginRight = "5px";  // pushes the search button 5 pixels to the left
+
+
       });
       

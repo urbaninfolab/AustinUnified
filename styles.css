@@ -43,3 +43,125 @@
     font-size: 0.9em;
     line-height: 1.5;
 }
+
+.tooltip {
+    position: relative;
+    display: inline-block;
+    border-bottom: 1px dotted black;
+  }
+  
+  .tooltip .tooltiptext {
+    visibility: hidden;
+    position: absolute;
+    width: 80px;
+    background-color: #555;
+    color: #fff;
+    text-align: center;
+    padding: 5px 0;
+    border-radius: 6px;
+    z-index: 1;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .tooltip-bottom {
+    top: 135%;
+    left: 50%;
+    margin-left: -40px;
+  }
+  
+  .tooltip-bottom::after {
+    content: "";
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: transparent transparent #555 transparent;
+}
+  
+  .tooltip:hover .tooltiptext {
+    visibility: visible;
+    opacity: 1;
+  }
+
+  /* Container for each list item */
+.list-element {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    border-bottom: 1px solid #ccc;
+    /* padding: 25px; */
+    padding: 15px 25px 15px 25px;
+    /* margin: 10px 0; */
+    /* margin: 0px 0px 10px 0px; */
+    /* border-radius: 5px; */
+    position: relative;
+}
+
+.list-element:hover {
+    background-color: #f4f4f4;
+    cursor: pointer;
+}
+
+/* Container for the text details */
+.list-text {
+    flex: 1;
+    margin-right: 20px; /* Space between text and image */
+    overflow: hidden;   /* Ensures that if text is too long, it won't overflow */
+
+    font-family: "Open Sans",Roboto,Arial,sans-serif;
+    line-height: 1.25rem;
+    font-size: 0.975rem;
+    letter-spacing: 0;
+    font-weight: 400;
+}
+
+/* Name (bolded) */
+.list-name {
+    font-weight: 500;
+    margin-bottom: 5px;
+    font-size:1.1rem;
+    line-height: 1.5rem;
+}
+
+/* Other details, address, and description */
+.list-details,
+.list-rating,
+.list-address,
+.list-description {
+    margin: 5px 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: wrap;
+    color: #70757a;
+    overflow: hidden;
+    direction: inherit;
+}
+
+/* Image container */
+.list-img {
+    flex-shrink: 0; /* Ensures that the image container doesn't shrink */
+    width: 84px;
+    height: 84px;
+}
+
+.list-img img {
+    /* width: 100%; */
+    /* height: 100%; */
+    width: 84px;
+    height: 84px;
+    object-fit: cover;
+    border-radius: 5px; /* Rounded corners for the image */
+    position: absolute;
+    top: 15px;
+    right: 25px;
+}
+
+
+.accordion {
+    overflow-y: auto;
+    overflow-x: hidden;
+    height: calc(100% - 47px);
+}
