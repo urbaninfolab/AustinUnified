@@ -14,18 +14,53 @@
 
         Cesium.GoogleMaps.defaultApiKey = "AIzaSyDV0rBF5y2f_xsSNj32fxvhqj3ZErTt6HQ";
 
-        const viewer = new Cesium.Viewer("cesiumContainer", {
-            globe: false,
-        });
+        // const viewer = new Cesium.Viewer("cesiumContainer", {
+        //     terrainProvider: Cesium.CesiumTerrainProvider.fromIonAssetId(1),
+        //     globe: false,
+        // });
 
+        const viewer = new Cesium.Viewer("cesiumContainer", {
+            terrainProvider: Cesium.CesiumTerrainProvider.fromIonAssetId(
+              1
+            ), // start the viewer in located in Austin
+          });
+           viewer.scene.globe.depthTestAgainstTerrain = true;
+
+
+    let cesiumTileset;  // Store reference to the Cesium tileset
+    let googleTileset;  // Store reference to the Google tileset
 
     async function createGooglePhotorealistic3DTileset() {
         try {
-        const tileset = await Cesium.createGooglePhotorealistic3DTileset();
-        window.tileset = tileset;
-        viewer.scene.primitives.add(tileset);
+        const tileset1 = await Cesium.createGooglePhotorealistic3DTileset();
+        console.log(tileset1);
+        googleTileset = tileset1;
+        window.tileset = tileset1;
 
-        fetchAllData();
+        viewer.scene.primitives.add(tileset1);
+
+        // // viewer.scene.primitives.add(tileset);
+        // await new Promise((resolve, reject) => {
+        //     // wait 5 seconds
+        //     setTimeout(() => {        
+        //         viewer.scene.primitives.add(tileset1);
+        //         console.log("5 seconds passed");
+        //         resolve();
+        //     }, 5000);
+        // });
+        // Ready promise 20 seconds
+        
+        await new Promise((resolve, reject) => {
+            // wait 5 seconds
+            setTimeout(() => {        
+                fetchAllData();
+                console.log("5 seconds passed");
+                resolve();
+            }, 500);
+        });
+
+        console.log("Tileset loaded!");
+        // fetchAllData();
 
         } catch (error) {
         console.log(`Failed to load tileset: ${error}`);
@@ -34,6 +69,385 @@
 
 
     createGooglePhotorealistic3DTileset();
+
+
+    // Load Cesium Tileset
+    async function createCesiumTileset() {
+        try {
+            const tileset = await Cesium.Cesium3DTileset.fromIonAssetId(96188);
+            cesiumTileset = tileset;
+            viewer.scene.primitives.add(tileset);
+            await viewer.zoomTo(tileset);
+
+            // Apply the default style if it exists
+            const extras = tileset.asset.extras;
+            if (Cesium.defined(extras) && Cesium.defined(extras.ion) && Cesium.defined(extras.ion.defaultStyle)) {
+                tileset.style = new Cesium.Cesium3DTileStyle(extras.ion.defaultStyle);
+            }
+
+            // Hide the Cesium tileset visually but allow it to be clickable
+            tileset.show = true;
+
+            // Set the tileset to fully transparent
+            tileset.style = new Cesium.Cesium3DTileStyle({
+                color: "rgba(0, 0, 0, 0.0)"  // Fully transparent
+            });
+
+
+            tileset.loadProgress.addEventListener((numberOfPendingRequests, numberOfTilesProcessing) => {
+                if (numberOfPendingRequests === 0 && numberOfTilesProcessing === 0) {
+                    // Set the tileset to fully transparent
+                    tileset.style = new Cesium.Cesium3DTileStyle({
+                        color: "rgba(0, 0, 0, 0.01)"  // Fully transparent
+                    });
+                    // All tiles are loaded
+                    tileset.show = true;
+                }
+            });
+
+        } catch (error) {
+            console.log(`Failed to load Cesium tileset: ${error}`);
+        }
+    }
+    createCesiumTileset();
+
+    let previouslySelectedFeature;  // Store the previously selected feature
+    const defaultColor = new Cesium.Color(1, 1, 1, 1);  // Default color (white)
+    const highlightColor = new Cesium.Color(0.7, 0.7, 0, 1);  // Highlight color (yellow)
+    
+    
+  const selectedEntity = new Cesium.Entity();
+
+
+  function getCesium3DTileFeatureDescription(feature) {
+    const propertyIds = feature.getPropertyIds();
+  
+    let html = "";
+    propertyIds.forEach(function (propertyId) {
+      const value = feature.getProperty(propertyId);
+      if (defined(value)) {
+        html += `<tr><th>${propertyId}</th><td>${value}</td></tr>`;
+      }
+    });
+  
+    if (html.length > 0) {
+      html = `<table class="cesium-infoBox-defaultTable"><tbody>${html}</tbody></table>`;
+    }
+  
+    return html;
+  }
+  function defined(value) {
+    return value !== undefined && value !== null;
+    }
+
+  function getCesium3DTileFeatureName(feature) {
+    // We need to iterate all property IDs to find potential
+    // candidates, but since we prefer some property IDs
+    // over others, we store them in an indexed array
+    // and then use the first defined element in the array
+    // as the preferred choice.
+  
+    let i;
+    const possibleIds = [];
+    const propertyIds = feature.getPropertyIds();
+    for (i = 0; i < propertyIds.length; i++) {
+      const propertyId = propertyIds[i];
+      if (/^name$/i.test(propertyId)) {
+        possibleIds[0] = feature.getProperty(propertyId);
+      } else if (/name/i.test(propertyId)) {
+        possibleIds[1] = feature.getProperty(propertyId);
+      } else if (/^title$/i.test(propertyId)) {
+        possibleIds[2] = feature.getProperty(propertyId);
+      } else if (/^(id|identifier)$/i.test(propertyId)) {
+        possibleIds[3] = feature.getProperty(propertyId);
+      } else if (/element/i.test(propertyId)) {
+        possibleIds[4] = feature.getProperty(propertyId);
+      } else if (/(id|identifier)$/i.test(propertyId)) {
+        possibleIds[5] = feature.getProperty(propertyId);
+      }
+    }
+  
+    const length = possibleIds.length;
+    for (i = 0; i < length; i++) {
+      const item = possibleIds[i];
+      if (defined(item) && item !== "") {
+        return item;
+      }
+    }
+    return "Unnamed Feature";
+  }
+
+
+
+  function formatFeatureForSidebar(feature) {
+    // Extract the relevant feature properties
+    const name = feature.getProperty("name") || "Unknown Name";
+    const city = feature.getProperty("addr:city");
+    const houseNumber = feature.getProperty("addr:housenumber");
+    const state = feature.getProperty("addr:state");
+    const street = feature.getProperty("addr:street");
+    const postcode = feature.getProperty("addr:postcode");
+    const website = feature.getProperty("website");
+    const wikipedia = feature.getProperty("wikipedia");
+    const phone = feature.getProperty("phone");
+
+    // Form the address and description using the extracted properties
+    let address = `${houseNumber} ${street}, ${city}, ${state} ${postcode}`;
+    let description = "";
+    if (website) {
+        description += `<a href="${website}" target="_blank">Website</a><br>`;
+    }
+    if (wikipedia) {
+        description += `<a href="https://en.wikipedia.org/wiki/${wikipedia.split(':').pop()}" target="_blank">Wikipedia</a><br>`;
+    }
+    if (phone) {
+        description += `Phone: ${phone}<br>`;
+    }
+
+    // Create the HTML elements
+    const eventDiv = document.createElement('div');
+    eventDiv.className = 'list-element';
+
+    const textDiv = document.createElement('div');
+    textDiv.className = 'list-text';
+
+    const nameP = document.createElement('p');
+    nameP.className = 'list-name';
+    nameP.textContent = name;
+
+    const addressP = document.createElement('p');
+    addressP.className = 'list-address';
+    addressP.textContent = address;
+
+    const descriptionP = document.createElement('p');
+    descriptionP.className = 'list-description';
+    descriptionP.innerHTML = description;
+
+    textDiv.appendChild(nameP);
+    textDiv.appendChild(addressP);
+    textDiv.appendChild(descriptionP);
+    eventDiv.appendChild(textDiv);
+
+    // const imgDiv = document.createElement('div');
+    // imgDiv.className = 'list-img';
+    // const imgElem = document.createElement('img');
+    // const lat = feature.getProperty("cesium#latitude").toFixed(5);
+    // const lng = feature.getProperty("cesium#longitude").toFixed(5);
+    // imgElem.src = `https://imagery.austindigitaltwin.com/image/${lat}/${lng}`;
+    // imgElem.onerror = function() {
+    //     imgElem.src = 'https://via.placeholder.com/84';
+    // };
+    // imgDiv.appendChild(imgElem);
+
+    // eventDiv.appendChild(imgDiv);
+
+    return eventDiv;
+}
+
+// function populateAndOpenSidebar(feature, sidebarPaneId) {
+//     const sidebarPane = document.getElementById(sidebarPaneId);
+//     const formattedContent = formatFeatureForSidebar(feature);
+//     sidebarPane.appendChild(formattedContent);
+// }
+
+
+
+
+  function populateAndOpenSidebar(pickedFeature, sidebarPaneId) {
+
+    $('#sidebar').removeClass('collapsed');
+    // Use property names as the sidebar title
+    document.getElementsByClassName("cesium-geocoder-input")[0].value = getCesium3DTileFeatureName(pickedFeature);
+
+    // Remove the current active class from all sidebar panes
+    let sidebarPanes = document.getElementsByClassName('sidebar-pane');
+    for (let i = 0; i < sidebarPanes.length; i++) {
+        sidebarPanes[i].className = 'sidebar-pane';
+    }
+
+    // Activate the target sidebar pane
+    const targetSidebarPane = document.getElementById('event');
+    targetSidebarPane.className = 'sidebar-pane active';
+
+    // Clear the target sidebar pane
+    // targetSidebarPane.innerHTML = '<h1 class="sidebar-header">Feature Information</h1>';
+    targetSidebarPane.innerHTML = '<h1 class="sidebar-header"></h1>';
+
+
+    
+    // add image to event div
+    var eventImage = document.createElement('img');
+    // eventImage.src = 'https://perfume-proceed-photo-fifth.trycloudflare.com/30.37934_-97.66141.png';
+    eventImage.src = 'https://imagery.austindigitaltwin.com/image/' + pickedFeature.getProperty('cesium#latitude') + '/' + pickedFeature.getProperty('cesium#longitude') 
+    eventImage.onerror = function() {
+        eventImage.src = 'https://via.placeholder.com/512';
+    }
+    eventImage.style = 'width:100%;object-fit: cover;height:320px;';
+    eventImage.id = 'eventimage';
+    document.getElementById('event').appendChild(eventImage);
+
+
+
+    // Populate the sidebar with feature information
+    // const featureDescription = getCesium3DTileFeatureDescription(pickedFeature);
+    // const featureInfoDiv = document.createElement('div');
+    // featureInfoDiv.innerHTML = featureDescription;
+    // targetSidebarPane.appendChild(featureInfoDiv);
+
+    const formattedContent = formatFeatureForSidebar(pickedFeature);
+    targetSidebarPane.appendChild(formattedContent);
+
+    // Create back button div wrapper
+    const backButtonDiv = document.createElement("div");
+    backButtonDiv.className = "back-button-div tooltip";
+    backButtonDiv.style = "top: 3px;opacity: 1;left: 10px;border: none;";
+
+    // Create back button SVG element
+    const backButtonSVG = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    backButtonSVG.setAttribute("width", "32");
+    backButtonSVG.setAttribute("height", "32");
+    backButtonSVG.setAttribute("viewBox", "0 0 32 32");
+
+    const backPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    backPath.setAttribute("d", "M20 8 L8 16 L20 24");
+    backPath.setAttribute("stroke", "#666");
+    backPath.setAttribute("stroke-width", "3");
+    backPath.setAttribute("fill", "#666");
+
+    backButtonSVG.appendChild(backPath);
+    backButtonDiv.appendChild(backButtonSVG);
+
+    // Create back button tooltip
+    const backButtonTooltip = document.createElement("span");
+    backButtonTooltip.className = "tooltiptext tooltip-bottom";
+    backButtonTooltip.textContent = "Back";
+    backButtonDiv.appendChild(backButtonTooltip);
+
+    // Add back button to DOM
+    const geocoderInput = document.querySelector('.cesium-geocoder-input');
+
+    // Only add the back button if it doesn't already exist
+    //         geocoderInput.parentNode.insertBefore(backButtonDiv, geocoderInput);
+
+    if(!document.querySelector('.back-button-div')) {
+        geocoderInput.parentNode.insertBefore(backButtonDiv, geocoderInput);
+    }
+
+    // Adjust geocoder input
+    geocoderInput.style = "margin-left: 15px;width: 235px !important;";
+
+    // Add back button click event
+    backButtonDiv.addEventListener('click', function() {
+        // Restore original geocoder input style
+        geocoderInput.style = "";
+
+        // Remove the back button
+        backButtonDiv.remove();
+
+        document.getElementsByClassName("cesium-geocoder-input")[0].value = "";
+
+        // Restore the original active sidebar pane
+        for (let i = 0; i < sidebarPanes.length; i++) {
+            sidebarPanes[i].className = 'sidebar-pane';
+        }
+        document.getElementById(sidebarPaneId).className = 'sidebar-pane active';
+    });
+}
+
+
+  
+
+  // Get default left click handler for when a feature is not picked on left click
+const clickHandler = viewer.screenSpaceEventHandler.getInputAction(
+    Cesium.ScreenSpaceEventType.LEFT_CLICK
+  );
+
+  let previouslySelectedBillboard; // to keep track of previously added billboard
+
+
+// Your existing click event handler, modified to use the helper functions
+viewer.screenSpaceEventHandler.setInputAction(function onLeftClick(movement) {
+    // Reset the color of the previously selected feature
+    if (previouslySelectedFeature) {
+        previouslySelectedFeature.color = defaultColor;
+    }
+
+    // Temporarily hide the Google Earth 3D tileset
+    if (googleTileset) {
+        googleTileset.show = false;
+    }
+    if (cesiumTileset) {
+        cesiumTileset.show = true;
+    }
+
+    // Attempt to pick from the Cesium tileset
+    let pickedFeature = viewer.scene.pick(movement.position);
+
+    // Restore visibility to the Google Earth 3D tileset
+    if (cesiumTileset) {
+        cesiumTileset.show = false;
+    }
+    if (googleTileset) {
+        googleTileset.show = true;
+    }
+
+    if (!Cesium.defined(pickedFeature) && googleTileset) {
+        // Just do default behavior if nothing was picked
+        clickHandler(movement);
+        return;
+        // pickedFeature = viewer.scene.pick(movement.position);
+    }
+    
+
+    if (Cesium.defined(pickedFeature)) {
+        // Use the Cesium open-source helper functions to get the name and description
+        // const featureName = getCesium3DTileFeatureName(pickedFeature);
+        // const featureDescription = getCesium3DTileFeatureDescription(pickedFeature);
+
+        // Update the selected entity
+        // viewer.selectedEntity = new Cesium.Entity({
+        //     name: featureName,
+        //     description: featureDescription
+        // });
+
+        let sidebarPaneId = document.getElementsByClassName('sidebar-pane active')[0].id;
+        populateAndOpenSidebar(pickedFeature, sidebarPaneId);
+
+        // Highlight the selected feature
+        pickedFeature.color = highlightColor;
+
+        // Update the reference to the previously selected feature
+        previouslySelectedFeature = pickedFeature;
+
+        // Put a marker down in the middle of the selected feature
+        // Extract the latitude and longitude properties from the picked feature
+        const lat = parseFloat(pickedFeature.getProperty('cesium#latitude'));
+        const lon = parseFloat(pickedFeature.getProperty('cesium#longitude'));
+
+        // Convert the latitude and longitude to Cartesian3 position
+        const position = Cesium.Cartesian3.fromDegrees(lon, lat);
+
+        // If there was a previously added billboard, remove it
+        if (previouslySelectedBillboard) {
+            viewer.entities.remove(previouslySelectedBillboard);
+        }
+
+        // Add a new billboard at the picked feature's position
+        previouslySelectedBillboard = viewer.entities.add({
+            position: position,
+            billboard: {
+                image: './circle.png', // Path to your marker image,
+                scale: 0.05, // This will need to be adjusted
+                verticalOrigin: Cesium.VerticalOrigin.BOTTOM
+            }
+        });
+
+
+
+    } else {
+        console.log("No feature picked.");
+    }
+}, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
     function addMore() {
         console.log("hey")
@@ -163,35 +577,15 @@ handler.setInputAction(function(click) {
     } else {
         console.log('No intersection found');
         // Do it again in 1 second
-        setTimeout(() => plotPoint(tileset, lat, lng, fireData), 1000);
-
+        try{
+            setTimeout(() => plotPoint(tileset, lat, lng, fireData), 1000);
+        }catch(err){
+            console.log(err);
+        }
     }
 }
 
 
-
-var originalPosition = Cesium.Cartesian3.fromDegrees(-97.739720, 30.285337);
-
-var offset = new Cesium.Cartesian3(-250, -80, -200); // Adjust this offset to get the right position.
-var position = Cesium.Cartesian3.add(originalPosition, offset, new Cesium.Cartesian3());
-
-var hpr = new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(90), Cesium.Math.toRadians(0), Cesium.Math.toRadians(0));
-var orientation = Cesium.Transforms.headingPitchRollQuaternion(position, hpr);
-
-var entity = viewer.entities.add({
-    position : position,
-    orientation : orientation,
-    model : {
-        uri : '30.285337,-97.7397203.glb',
-        minimumPixelSize : 12,
-        maximumScale : 20,
-        scale : 0.005,
-        color: new Cesium.Color(0, 0, 0, 0.9), // Black color with 0.5 alpha
-        colorBlendMode : Cesium.ColorBlendMode.MIX,
-        colorBlendAmount : 0.5,
-        opacity : 0.4,
-    }
-});
 
 
 function fetchAllData() {
@@ -210,7 +604,11 @@ fetch('https://smartcity.tacc.utexas.edu/FireIncident/data/2022-08-08-FireMap.js
             let [lat, lng] = latLng.split(",");
             console.log(lat, lng);
 
+            try{
             plotPoint(window.tileset, parseFloat(lat), parseFloat(lng), item);
+            }catch(err){
+                console.log(err);
+            }
 
             let modelUrl = `${latLng}.glb`;
             let position = Cesium.Cartesian3.fromDegrees(parseFloat(lng), parseFloat(lat));
@@ -325,59 +723,61 @@ closePopupHandler.setInputAction(() => {
     }
 }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
-viewer.screenSpaceEventHandler.setInputAction(function (event) {
-    var pickedObjects = viewer.scene.drillPick(event.position);
-    for (let i = 0; i < pickedObjects.length; i++) {
-        if (pickedObjects[i].primitive instanceof Cesium.Billboard) {
-            let sensorKey = pickedObjects[i].primitive.id._id;
-            console.log(sensorKey);
-            let airApiUrl = 'https://api.purpleair.com/v1/sensors/' + sensorKey + '?api_key=81D9ACDC-966F-11EC-B9BF-42010A800003';
-            fetch(airApiUrl).then((response) => {
-                return response.json();
-            }).then((data) => {
-                console.log(data);
-                var description = "";  
-                try {
-                var popupHtml = buildAirDataPopup(pickedObjects[i].primitive, data.sensor, description);
-                } catch {
-                    console.log("error")
-                    return
-                }
-                const action = {
-                    remove: (popup) => {
-                        console.log(popup, "The popup was removed");
-                    },
-                    onChange: (popup) => {
-                        console.log(popup, "The popup was moved");
-                    },
-                    editAttr: (popup) => {
-                        console.log(popup, "The popup needs to edit attributes！");
-                        popup.setContent("My content has been changed！")
-                    }
-                }
+// viewer.screenSpaceEventHandler.setInputAction(function (event) {
+//     var pickedObjects = viewer.scene.drillPick(event.position);
+//     for (let i = 0; i < pickedObjects.length; i++) {
+//         if (pickedObjects[i].primitive instanceof Cesium.Billboard) {
+//             let sensorKey = pickedObjects[i].primitive.id._id;
+//             console.log(sensorKey);
+//             let airApiUrl = 'https://api.purpleair.com/v1/sensors/' + sensorKey + '?api_key=81D9ACDC-966F-11EC-B9BF-42010A800003';
+//             fetch(airApiUrl).then((response) => {
+//                 return response.json();
+//             }).then((data) => {
+//                 console.log(data);
+//                 var description = "";  
+//                 try {
+//                 var popupHtml = buildAirDataPopup(pickedObjects[i].primitive, data.sensor, description);
+//                 } catch {
+//                     console.log("error")
+//                     return
+//                 }
+//                 const action = {
+//                     remove: (popup) => {
+//                         console.log(popup, "The popup was removed");
+//                     },
+//                     onChange: (popup) => {
+//                         console.log(popup, "The popup was moved");
+//                     },
+//                     editAttr: (popup) => {
+//                         console.log(popup, "The popup needs to edit attributes！");
+//                         popup.setContent("My content has been changed！")
+//                     }
+//                 }
                 
-                if (newpopup) {
-                    newpopup.remove();
-                }
+//                 if (newpopup) {
+//                     newpopup.remove();
+//                 }
 
-                newpopup = new CesiumPopup(viewer, {
-                    position: pickedObjects[i].primitive.position, 
-                    html: popupHtml, 
-                    className: "earth-popup-common1", 
-                    popPosition: "bottom"
-                }, action);
+//                 newpopup = new CesiumPopup(viewer, {
+//                     position: pickedObjects[i].primitive.position, 
+//                     html: popupHtml, 
+//                     className: "earth-popup-common1", 
+//                     popPosition: "bottom"
+//                 }, action);
 
-                document.querySelector('.mapboxgl-popup-close-button').addEventListener('click', () => {
-                    if (newpopup) {
-                        newpopup.remove();
-                        newpopup = null;
-                    }
-                });
+//                 document.querySelector('.mapboxgl-popup-close-button').addEventListener('click', () => {
+//                     if (newpopup) {
+//                         newpopup.remove();
+//                         newpopup = null;
+//                     }
+//                 });
                 
-            });
-        }
-    }
-}, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+//             });
+//         }
+//     }
+// }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+
 
 
 
@@ -532,11 +932,48 @@ viewer.screenSpaceEventHandler.setInputAction(function (event) {
 
 
 
+    async function zoomToo() {
+    var originalPosition = Cesium.Cartesian3.fromDegrees(-97.739720, 30.285337);
+
+    var offset = new Cesium.Cartesian3(-250, -80, -200); // Adjust this offset to get the right position.
+    var position = Cesium.Cartesian3.add(originalPosition, offset, new Cesium.Cartesian3());
+    
+    var hpr = new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(90), Cesium.Math.toRadians(0), Cesium.Math.toRadians(0));
+    var orientation = Cesium.Transforms.headingPitchRollQuaternion(position, hpr);
+    
+    var entity = viewer.entities.add({
+        position : position,
+        orientation : orientation,
+        model : {
+            uri : '30.285337,-97.7397203.glb',
+            minimumPixelSize : 12,
+            maximumScale : 20,
+            scale : 0.005,
+            color: new Cesium.Color(0, 0, 0, 0.9), // Black color with 0.5 alpha
+            colorBlendMode : Cesium.ColorBlendMode.MIX,
+            colorBlendAmount : 0.5,
+            opacity : 0.4,
+        }
+    });
     viewer.flyTo(entity, {
         offset : new Cesium.HeadingPitchRange(0.0, -0.5, 2000.0)
     });
+    }
+
+    // Call zoomToo() function after 10 seconds
+    setTimeout(zoomToo, 1000);
 
     var scene = viewer.scene;
+
+    setTimeout(function() {
+        viewer.camera.setView({
+            destination : Cesium.Cartesian3.fromDegrees(-97.739720, 30.285337, 1000)
+        });
+    }, 500);  // waits 5 seconds
+    
+    
+
+
     var canvas = viewer.canvas;
     var handler = new Cesium.ScreenSpaceEventHandler(canvas);
     var annotations = scene.primitives.add(new Cesium.LabelCollection());
@@ -545,8 +982,8 @@ viewer.screenSpaceEventHandler.setInputAction(function (event) {
     document.getElementsByClassName("cesium-viewer-timelineContainer")[0].style.display = "none";
     document.getElementsByClassName("cesium-viewer-fullscreenContainer")[0].style.display = "none";
     // document.getElementsByClassName("cesium-viewer-geocoderContainer")[0].style.display = "none";
-    document.getElementsByClassName("cesium-viewer-infoBoxContainer")[0].style.display = "none";
-    document.getElementsByClassName("cesium-viewer-selectionIndicatorContainer")[0].style.display = "none";
+    // document.getElementsByClassName("cesium-viewer-infoBoxContainer")[0].style.display = "none";
+    // document.getElementsByClassName("cesium-viewer-selectionIndicatorContainer")[0].style.display = "none";
     // get all cesium-toolbar-button elements (class) and hide them
     var elements = document.getElementsByClassName("cesium-toolbar-button");
     for (var i = 0; i < elements.length; i++) {
@@ -631,6 +1068,19 @@ viewer.screenSpaceEventHandler.setInputAction(function (event) {
         xButtonDiv.onclick = function() {
             // prevent the default
             event.preventDefault();
+            document.getElementsByClassName("cesium-geocoder-input")[0].value = "";
+
+            // If back button exists, remove it
+            if(document.getElementsByClassName("back-button-div")[0]) {
+                document.getElementsByClassName("back-button-div")[0].remove();
+
+                // Get geocoder input
+                const geocoderInput = document.querySelector('.cesium-geocoder-input');
+                geocoderInput.style = "";
+
+
+            }
+
             sidebar.close();
         }
 

@@ -155,37 +155,36 @@ function updateSidebar(events, clear=true) {
         // You'd typically want a placeholder image or a specific image for each event. For now, I'll just use a placeholder.
         imgElem.src = 'https://via.placeholder.com/84'; // Update this path to your image
         
+        var imgLat;
+        var imgLng;
+
         // round lat and lng to 5 decimal places
         if(event.latitude != null && event.longitude != null) {
             try {
-                // let lat = Math.round(event.latitude * 100000) / 100000;
-                // let lng = Math.round(event.longitude * 100000) / 100000;
-                // round to 5 decimals another way
                 let lat = event.latitude.toFixed(5);
                 let lng = event.longitude.toFixed(5);
-                imgElem.src = 'https://perfume-proceed-photo-fifth.trycloudflare.com/' + lat + '_' + lng + '.png';
+                imgElem.src = 'https://imagery.austindigitaltwin.com/image/' + lat + '/' + lng;
                 imgElem.onerror = function() {
                     imgElem.src = 'https://via.placeholder.com/84';
                 }
+                imgLat = lat;
+                imgLng = lng;
             }
             catch(e) {
                 imgElem.src = 'https://via.placeholder.com/84';
                 console.log(e);
             }    
         } else if(event.link != null) {
-            // python
-            // lat_lng = link.replace('http://maps.google.com/maps?q=', '').split(',')
-            // lat = "{:.5f}".format(float(lat_lng[0]))
-            // lng = "{:.5f}".format(float(lat_lng[1]))
-            // javascript
             try {
                 let lat_lng = event.link.replace('http://maps.google.com/maps?q=', '').split(',');
                 let lat = parseFloat(lat_lng[0]).toFixed(5);
                 let lng = parseFloat(lat_lng[1]).toFixed(5);
-                imgElem.src = 'https://perfume-proceed-photo-fifth.trycloudflare.com/' + lat + '_' + lng + '.png';
+                imgElem.src = 'https://imagery.austindigitaltwin.com/image/' + lat + '/' + lng;
                 imgElem.onerror = function() {
                     imgElem.src = 'https://via.placeholder.com/84';
                 }
+                imgLat = lat;
+                imgLng = lng;
             }
             catch(e) {
                 imgElem.src = 'https://via.placeholder.com/84';
@@ -197,11 +196,6 @@ function updateSidebar(events, clear=true) {
 
         eventDiv.appendChild(textDiv);
         eventDiv.appendChild(imgDiv);
-
-        // sidebarContent.appendChild(eventDiv);
-
-        // $('#eventsAccordion').innerHTML = '';
-        // clear it
 
         // on eventdiv click, zoom to event on cesium map
         eventDiv.addEventListener('click', function() {
@@ -243,7 +237,8 @@ function updateSidebar(events, clear=true) {
 
             // add image to event div
             var eventImage = document.createElement('img');
-            eventImage.src = 'https://perfume-proceed-photo-fifth.trycloudflare.com/30.37934_-97.66141.png';
+            // eventImage.src = 'https://perfume-proceed-photo-fifth.trycloudflare.com/30.37934_-97.66141.png';
+            eventImage.src = 'https://imagery.austindigitaltwin.com/image/' + imgLat + '/' + imgLng;
             eventImage.style = 'width:100%;object-fit: cover;height:320px;';
             eventImage.id = 'eventimage';
             document.getElementById('event').appendChild(eventImage);
@@ -287,9 +282,16 @@ function updateSidebar(events, clear=true) {
 
             // Insert the back button before the Cesium geocoder input
             var geocoderInput = document.querySelector('.cesium-geocoder-input');
-            var shiftAmount = "40px";
-            geocoderInput.style = "margin-left: " + shiftAmount + ";width: 210px !important; ";
-            geocoderInput.parentNode.insertBefore(backButtonDiv, geocoderInput);
+            var shiftAmount = "15px";
+            geocoderInput.style = "margin-left: " + shiftAmount + ";width: 235px !important; ";
+            // geocoderInput.parentNode.insertBefore(backButtonDiv, geocoderInput);
+            
+            if(!document.querySelector('.back-button-div')) {
+                geocoderInput.parentNode.insertBefore(backButtonDiv, geocoderInput);
+            }
+            
+            // margin-left: 15px;
+            //width: 235px !important;
 
             // make the back button return the active class to the previous sidebar pane
             // and remove the back button (the id is stored in sidebarPaneId)
@@ -302,6 +304,8 @@ function updateSidebar(events, clear=true) {
                 // remove the current active from all sidebar panes
                 let sidebarPanes = document.getElementsByClassName('sidebar-pane');
                 
+                document.getElementsByClassName("cesium-geocoder-input")[0].value = "";
+
                 for (let i = 0; i < sidebarPanes.length; i++) {
                     sidebarPanes[i].className = 'sidebar-pane';
                 }
