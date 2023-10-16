@@ -12,7 +12,7 @@
 
         Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI3ODhiN2NhYi02NzgxLTQ2OWQtOTAzMi02ZTgwYmNjMGJmYjYiLCJpZCI6MTM4NjUzLCJpYXQiOjE2ODQxMTUyNDV9.yzVSoiedb3diO7rOG9kd9Luuamx4Wjnieson-zb3vvk";
 
-        Cesium.GoogleMaps.defaultApiKey = "AIzaSyDV0rBF5y2f_xsSNj32fxvhqj3ZErTt6HQ";
+        // Cesium.GoogleMaps.defaultApiKey = "AIzaSyDV0rBF5y2f_xsSNj32fxvhqj3ZErTt6HQ";
 
         // const viewer = new Cesium.Viewer("cesiumContainer", {
         //     terrainProvider: Cesium.CesiumTerrainProvider.fromIonAssetId(1),
@@ -32,7 +32,17 @@
 
     async function createGooglePhotorealistic3DTileset() {
         try {
-        const tileset1 = await Cesium.createGooglePhotorealistic3DTileset();
+        const tileset1 = await Cesium.createGooglePhotorealistic3DTileset(
+            "AIzaSyDV0rBF5y2f_xsSNj32fxvhqj3ZErTt6HQ",
+            {
+                // maximumScreenSpaceError: 2// The defaults to 16. Lower is higher quality.
+            }
+        );
+        // const tileset1 = new Cesium.Cesium3DTileset({
+        //     url: 'http://localhost:3001/tileset/', // Point this to your caching server
+        // });
+        // viewer.scene.primitives.add(tileset);
+        
         console.log(tileset1);
         googleTileset = tileset1;
         window.tileset = tileset1;
@@ -111,6 +121,28 @@
     }
     createCesiumTileset();
 
+
+    // Load in Austin housing 
+    let housingData = [];
+
+    Papa.parse('austinHousingData.csv', {
+        header: true,
+        dynamicTyping: true,
+        complete: function(results) {
+          console.log("Completed parsing CSV");
+          housingData = results.data;
+          console.log(results);
+        },
+        error: function(error, file) {
+          console.log("Error while parsing CSV", error, file);
+        },
+        download: true // If the file is to be fetched from the server
+      });
+      
+      
+
+
+
     let previouslySelectedFeature;  // Store the previously selected feature
     const defaultColor = new Cesium.Color(1, 1, 1, 1);  // Default color (white)
     const highlightColor = new Cesium.Color(0.7, 0.7, 0, 1);  // Highlight color (yellow)
@@ -140,109 +172,127 @@
     return value !== undefined && value !== null;
     }
 
-  function getCesium3DTileFeatureName(feature) {
-    // We need to iterate all property IDs to find potential
-    // candidates, but since we prefer some property IDs
-    // over others, we store them in an indexed array
-    // and then use the first defined element in the array
-    // as the preferred choice.
-  
-    let i;
-    const possibleIds = [];
-    const propertyIds = feature.getPropertyIds();
-    for (i = 0; i < propertyIds.length; i++) {
-      const propertyId = propertyIds[i];
-      if (/^name$/i.test(propertyId)) {
-        possibleIds[0] = feature.getProperty(propertyId);
-      } else if (/name/i.test(propertyId)) {
-        possibleIds[1] = feature.getProperty(propertyId);
-      } else if (/^title$/i.test(propertyId)) {
-        possibleIds[2] = feature.getProperty(propertyId);
-      } else if (/^(id|identifier)$/i.test(propertyId)) {
-        possibleIds[3] = feature.getProperty(propertyId);
-      } else if (/element/i.test(propertyId)) {
-        possibleIds[4] = feature.getProperty(propertyId);
-      } else if (/(id|identifier)$/i.test(propertyId)) {
-        possibleIds[5] = feature.getProperty(propertyId);
+    function getCesium3DTileFeatureName(feature) {
+        let possibleIds = []; // Initialize as an empty array
+      
+        const propertyIds = feature.getPropertyIds();
+        for (let i = 0; i < propertyIds.length; i++) {
+          const propertyId = propertyIds[i];
+          
+          if (/^name$/i.test(propertyId)) {
+            possibleIds[0] = feature.getProperty(propertyId);
+          } else if (/name/i.test(propertyId)) {
+            possibleIds[1] = feature.getProperty(propertyId);
+          }
+        }
+        
+        // Try to assemble the street address, if possible
+        const houseNumber = feature.getProperty('addr:housenumber');
+        const street = feature.getProperty('addr:street');
+        if (houseNumber && street) {
+          possibleIds[2] = `${houseNumber} ${street}`;
+        }
+      
+        // Assemble latitude-longitude string
+        const latitude = feature.getProperty('cesium#latitude');
+        const longitude = feature.getProperty('cesium#longitude');
+        if (latitude && longitude) {
+          possibleIds[3] = `${latitude}, ${longitude}`;
+        }
+      
+        // Return the first non-null, non-empty string from the possibleIds array
+        for (const id of possibleIds) {
+          if (defined(id) && id !== '') {
+            return id;
+          }
+        }
+        
+        return "Unnamed Feature";
       }
-    }
-  
-    const length = possibleIds.length;
-    for (i = 0; i < length; i++) {
-      const item = possibleIds[i];
-      if (defined(item) && item !== "") {
-        return item;
-      }
-    }
-    return "Unnamed Feature";
-  }
+      
+      
 
 
 
-  function formatFeatureForSidebar(feature) {
-    // Extract the relevant feature properties
-    const name = feature.getProperty("name") || "Unknown Name";
-    const city = feature.getProperty("addr:city");
-    const houseNumber = feature.getProperty("addr:housenumber");
-    const state = feature.getProperty("addr:state");
-    const street = feature.getProperty("addr:street");
-    const postcode = feature.getProperty("addr:postcode");
-    const website = feature.getProperty("website");
-    const wikipedia = feature.getProperty("wikipedia");
-    const phone = feature.getProperty("phone");
+      function formatFeatureForSidebar(feature) {
+        console.log(feature);
+        // Log all properties to the console
+        const propertyIds = feature.getPropertyIds();
+        for (let i = 0; i < propertyIds.length; i++) {
+            const propertyId = propertyIds[i];
+            console.log(`${propertyId}: ${feature.getProperty(propertyId)}`);
+            }
 
-    // Form the address and description using the extracted properties
-    let address = `${houseNumber} ${street}, ${city}, ${state} ${postcode}`;
-    let description = "";
-    if (website) {
-        description += `<a href="${website}" target="_blank">Website</a><br>`;
-    }
-    if (wikipedia) {
-        description += `<a href="https://en.wikipedia.org/wiki/${wikipedia.split(':').pop()}" target="_blank">Wikipedia</a><br>`;
-    }
-    if (phone) {
-        description += `Phone: ${phone}<br>`;
-    }
-
-    // Create the HTML elements
-    const eventDiv = document.createElement('div');
-    eventDiv.className = 'list-element';
-
-    const textDiv = document.createElement('div');
-    textDiv.className = 'list-text';
-
-    const nameP = document.createElement('p');
-    nameP.className = 'list-name';
-    nameP.textContent = name;
-
-    const addressP = document.createElement('p');
-    addressP.className = 'list-address';
-    addressP.textContent = address;
-
-    const descriptionP = document.createElement('p');
-    descriptionP.className = 'list-description';
-    descriptionP.innerHTML = description;
-
-    textDiv.appendChild(nameP);
-    textDiv.appendChild(addressP);
-    textDiv.appendChild(descriptionP);
-    eventDiv.appendChild(textDiv);
-
-    // const imgDiv = document.createElement('div');
-    // imgDiv.className = 'list-img';
-    // const imgElem = document.createElement('img');
-    // const lat = feature.getProperty("cesium#latitude").toFixed(5);
-    // const lng = feature.getProperty("cesium#longitude").toFixed(5);
-    // imgElem.src = `https://imagery.austindigitaltwin.com/image/${lat}/${lng}`;
-    // imgElem.onerror = function() {
-    //     imgElem.src = 'https://via.placeholder.com/84';
-    // };
-    // imgDiv.appendChild(imgElem);
-
-    // eventDiv.appendChild(imgDiv);
-
-    return eventDiv;
-}
+                // Extract the relevant feature properties
+                const name = feature.getProperty("name");
+                const city = feature.getProperty("addr:city") || "";
+                const houseNumber = feature.getProperty("addr:housenumber") || "";
+                const state = feature.getProperty("addr:state") || "";
+                const street = feature.getProperty("addr:street") || "";
+                const postcode = feature.getProperty("addr:postcode") || "";
+                const website = feature.getProperty("website");
+                const wikipedia = feature.getProperty("wikipedia");
+                const phone = feature.getProperty("phone");
+                const lat = feature.getProperty("cesium#latitude") || "";
+                const lon = feature.getProperty("cesium#longitude") || "";
+              
+                // Initialize variables for display
+                let displayText = "";
+                let address = "";
+              
+                // Formulate displayText and address based on available data
+                let addressParts = [houseNumber, street, city, state, postcode].filter(Boolean);
+                if (name) {
+                  displayText = name;
+                  address = addressParts.join(", ");
+                } else if (addressParts.length > 0) {
+                  displayText = addressParts.join(", ");
+                  address = `${lat}, ${lon}`;
+                } else if (lat && lon) {
+                  displayText = `${lat}, ${lon}`;
+                  address = "";
+                }
+              
+                // Continue as before ...
+                let description = "";
+                if (website) {
+                  description += `<a href="${website}" target="_blank">Website</a><br>`;
+                }
+                if (wikipedia) {
+                  description += `<a href="https://en.wikipedia.org/wiki/${wikipedia.split(':').pop()}" target="_blank">Wikipedia</a><br>`;
+                }
+                if (phone) {
+                  description += `Phone: ${phone}<br>`;
+                }
+              
+                const eventDiv = document.createElement('div');
+                eventDiv.className = 'list-element';
+                const textDiv = document.createElement('div');
+                textDiv.className = 'list-text';
+              
+                const nameP = document.createElement('p');
+                nameP.className = 'list-name';
+                nameP.textContent = displayText;
+              
+                const addressP = document.createElement('p');
+                addressP.className = 'list-address';
+                addressP.textContent = address;
+              
+                const descriptionP = document.createElement('p');
+                descriptionP.className = 'list-description';
+                descriptionP.innerHTML = description;
+              
+                textDiv.appendChild(nameP);
+                textDiv.appendChild(addressP);
+                textDiv.appendChild(descriptionP);
+                eventDiv.appendChild(textDiv);
+              
+                // ... (Your image related code)
+              
+                return eventDiv;
+              }
+              
+      
 
 // function populateAndOpenSidebar(feature, sidebarPaneId) {
 //     const sidebarPane = document.getElementById(sidebarPaneId);
@@ -369,7 +419,7 @@ const clickHandler = viewer.screenSpaceEventHandler.getInputAction(
 viewer.screenSpaceEventHandler.setInputAction(function onLeftClick(movement) {
     // Reset the color of the previously selected feature
     if (previouslySelectedFeature) {
-        previouslySelectedFeature.color = defaultColor;
+        //previouslySelectedFeature.color = defaultColor;
     }
 
     // Temporarily hide the Google Earth 3D tileset
@@ -385,7 +435,7 @@ viewer.screenSpaceEventHandler.setInputAction(function onLeftClick(movement) {
 
     // Restore visibility to the Google Earth 3D tileset
     if (cesiumTileset) {
-        cesiumTileset.show = false;
+        // cesiumTileset.show = false;
     }
     if (googleTileset) {
         googleTileset.show = true;
@@ -400,6 +450,10 @@ viewer.screenSpaceEventHandler.setInputAction(function onLeftClick(movement) {
     
 
     if (Cesium.defined(pickedFeature)) {
+        console.log("Feature picked!");
+        console.log(pickedFeature);
+        // Detect if fire, building, air sensor, crime.?
+
         // Use the Cesium open-source helper functions to get the name and description
         // const featureName = getCesium3DTileFeatureName(pickedFeature);
         // const featureDescription = getCesium3DTileFeatureDescription(pickedFeature);
@@ -414,7 +468,7 @@ viewer.screenSpaceEventHandler.setInputAction(function onLeftClick(movement) {
         populateAndOpenSidebar(pickedFeature, sidebarPaneId);
 
         // Highlight the selected feature
-        pickedFeature.color = highlightColor;
+        // pickedFeature.color = highlightColor;
 
         // Update the reference to the previously selected feature
         previouslySelectedFeature = pickedFeature;
@@ -441,6 +495,185 @@ viewer.screenSpaceEventHandler.setInputAction(function onLeftClick(movement) {
                 verticalOrigin: Cesium.VerticalOrigin.BOTTOM
             }
         });
+
+
+        let foundHouse = null;
+
+        try {
+          // Try to extract address
+          address = `${pickedFeature.getProperty("addr:housenumber")} ${pickedFeature.getProperty("addr:street")}`;
+          console.log("Extracted address: " + address);
+          // Search by address
+          foundHouse = housingData.find(house => house.streetAddress === address);
+        } catch (err) {
+          // Address not available, proceed to search by latitude and longitude
+        }
+      
+        if (!foundHouse) {
+          // Search by latitude and longitude
+          foundHouse = housingData.find(house => 
+            Math.abs(house.latitude - lat) < 0.0005 &&
+            Math.abs(house.longitude - lon) < 0.0005
+          );
+        }
+      
+        if (foundHouse) {
+            console.log("Found house!");
+
+            // Reference to the existing image element
+            const eventImage = document.getElementById('eventimage');
+            
+            // Store the current image source before attempting to switch
+            const originalImageSrc = eventImage.src;
+
+            // Try to switch out the image to the Zillow one
+            const newImageSrc = `https://imagery.austindigitaltwin.com/homeImage/${foundHouse.homeImage}`;
+            eventImage.src = newImageSrc;
+            eventImage.onerror = function() {
+                // Revert to the original image if the new one fails to load
+                eventImage.src = originalImageSrc;
+            };
+
+            // Create HTML elements to display additional house info
+            const additionalInfoDiv = document.createElement('div');
+            additionalInfoDiv.className = 'list-element';  // Added class
+          
+            const textDiv = document.createElement('div');
+            textDiv.className = 'list-text';  // Added class
+          
+            const additionalInfoHeader = document.createElement('h2');
+            additionalInfoHeader.className = 'list-name';  // Added class
+            additionalInfoHeader.textContent = "Additional Information";
+          
+            const formattedPrice = parseFloat(foundHouse.latestPrice).toLocaleString('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+              });
+              
+            const priceP = document.createElement('p');
+            priceP.className = 'list-description';  // Added class
+            priceP.textContent = `Price: ${formattedPrice}`;                     
+          
+            const bedroomsP = document.createElement('p');
+            bedroomsP.className = 'list-description';  // Added class
+            bedroomsP.textContent = `Bedrooms: ${foundHouse.numOfBedrooms}`;
+          
+            const bathroomsP = document.createElement('p');
+            bathroomsP.className = 'list-description';  // Added class
+            bathroomsP.textContent = `Bathrooms: ${foundHouse.numOfBathrooms}`;
+          
+            // Assemble the elements
+            textDiv.appendChild(additionalInfoHeader);
+            textDiv.appendChild(priceP);
+
+
+            // Add lot size information
+            const lotSizeP = document.createElement('p');
+            lotSizeP.className = 'list-description';  // Added class
+            lotSizeP.style = 'float: right;';  // Float it to the right
+            const lotSizeSqFt = foundHouse.lotSizeSqFt.toLocaleString('en-US');  // Format the lot size
+            lotSizeP.innerHTML = `${lotSizeSqFt} ft<sup>2</sup>`;  // Using HTML sup tag for square symbol
+            textDiv.appendChild(lotSizeP);  // Append the lot size element
+
+            lotSizeP.style.margin = '0px';
+            priceP.style.margin = '0px';
+
+            textDiv.appendChild(bedroomsP);
+            textDiv.appendChild(bathroomsP);
+            additionalInfoDiv.appendChild(textDiv);
+
+            // Add homeType information
+            const homeTypeP = document.createElement('p');
+            homeTypeP.className = 'list-description';  // Added class
+            homeTypeP.textContent = foundHouse.homeType;
+            homeTypeP.style = 'float: right; font-size: small;';
+            additionalInfoHeader.appendChild(homeTypeP);
+
+            // Append additional information to sidebar
+            const targetSidebarPane = document.getElementById('event');
+            targetSidebarPane.appendChild(additionalInfoDiv);
+          }
+
+
+          {
+
+// ... Existing code above the additional information ...
+
+// ... Existing code for additional information ...
+
+// Function to create stats section
+// Generate random numbers for crimes and fires (0 to 2)
+let randomCrimeCount = Math.floor(Math.random() * 3);
+let randomFireCount = Math.floor(Math.random() * 3);
+
+// Create parent div for stats
+let statsDiv = document.createElement('div');
+statsDiv.className = 'event-stats';
+
+// Create individual stat boxes
+let crimeBox = document.createElement('div');
+crimeBox.className = 'stat-box';
+
+let fireBox = document.createElement('div');
+fireBox.className = 'stat-box';
+
+// Create progress ring divs
+let crimeRing = document.createElement('div');
+crimeRing.className = 'progress-ring';
+
+let fireRing = document.createElement('div');
+fireRing.className = 'progress-ring';
+
+// Assign risk level classes based on random numbers (for demonstration)
+crimeRing.classList.add(randomCrimeCount === 0 ? 'low-risk' : randomCrimeCount === 1 ? 'medium-risk' : 'high-risk');
+fireRing.classList.add(randomFireCount === 0 ? 'low-risk' : randomFireCount === 1 ? 'medium-risk' : 'high-risk');
+
+// Create icons and numbers
+let crimeIcon = document.createElement('img');
+crimeIcon.src = 'crime.png';  // Path to your crime icon
+
+let fireIcon = document.createElement('img');
+fireIcon.src = 'firelogo.png';  // Path to your fire icon
+
+let crimeNumber = document.createElement('p');
+// crimeNumber.innerText = randomCrimeCount;
+
+let fireNumber = document.createElement('p');
+// fireNumber.innerText = randomFireCount;
+
+// Assemble everything
+crimeBox.appendChild(crimeRing);
+crimeBox.appendChild(crimeIcon);
+crimeBox.appendChild(crimeNumber);
+
+fireBox.appendChild(fireRing);
+fireBox.appendChild(fireIcon);
+fireBox.appendChild(fireNumber);
+
+statsDiv.appendChild(crimeBox);
+statsDiv.appendChild(fireBox);
+
+// Append stats to target sidebar
+const targetSidebarPane = document.getElementById('event');
+
+// Put stats-div inside a list-element div
+let statsWrapper = document.createElement('div');
+statsWrapper.className = 'list-element';
+statsWrapper.appendChild(statsDiv);
+
+statsWrapper.style.display = 'block';
+statsWrapper.style.padding = '40px';
+
+
+targetSidebarPane.appendChild(statsWrapper);
+
+  
+
+
+          }
+          
 
 
 
@@ -996,24 +1229,98 @@ closePopupHandler.setInputAction(() => {
 
 
     document.addEventListener("DOMContentLoaded", function() {
-        const geocoderContainer = document.getElementsByClassName("cesium-viewer-geocoderContainer")[0];
-        const searchResults = geocoderContainer.getElementsByClassName("search-results")[0];
-        
-        // Initialize a MutationObserver to watch for changes in the style attribute
-        const observer = new MutationObserver(function(mutations) {
-          mutations.forEach(function(mutation) {
-            if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
-              const displayStyle = searchResults.style.display;
-              
-              // If the search-results container is not 'display: none'
-              if (displayStyle !== "none") {
-                geocoderContainer.style.borderRadius = "16px 16px 0 0";
-              } else {
-                geocoderContainer.style.borderRadius = ""; // Reset to the original style or set it to your default value
-              }
+
+            const geocoderContainer = document.getElementsByClassName("cesium-viewer-geocoderContainer")[0];
+            const searchResults = geocoderContainer.getElementsByClassName("search-results")[0];
+            const searchInput = geocoderContainer.getElementsByClassName("cesium-geocoder-input")[0];
+            
+            // Dummy crime and fire data
+            var crimeData = [
+                { offense_location: ["Structure Fire - 3 E Loop Rd, New York"], report_date_time: "2022-01-01T12:00:00Z", offenses: ["Robbery"] },
+                // ... more data
+            ];
+            
+            var fireData = [
+                { description: "California|...", pubDate: "2022-01-01T12:00:00Z", title: "Forest Fire" },
+                // ... more data
+            ];
+            
+            // Normalize the location data
+            crimeData.forEach(event => {
+                event.normalizedLocation = event.offense_location[0].toLowerCase();
+                event.location = event.offense_location[0];
+            });
+            
+            fireData.forEach(event => {
+                event.normalizedLocation = event.description.split('|')[0].toLowerCase();
+                event.location = event.description.split('|')[0];
+            });
+            
+            // Function to extend the search
+            function extendedSearch(searchText) {
+                const normalizedSearchText = searchText.toLowerCase();
+                const matchingCrimes = crimeData.filter(event => event.normalizedLocation.includes(normalizedSearchText));
+                const matchingFires = fireData.filter(event => event.normalizedLocation.includes(normalizedSearchText));
+                
+                return [...matchingCrimes, ...matchingFires];
             }
-          });
-        });
+            
+            // Function to display extended search results
+            function displayExtendedResults(matchingEvents) {
+                const ul = searchResults.getElementsByTagName('ul')[0];
+                
+                matchingEvents.forEach(event => {
+                    const li = document.createElement('li');
+                    li.textContent = event.location; // Customize this part to display what you need
+                    ul.appendChild(li);
+                });
+            }
+            
+            // Initialize a MutationObserver to watch for changes in the style attribute
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                        const displayStyle = searchResults.style.display;
+                        
+                        // If the search-results container is not 'display: none'
+                        if (displayStyle !== "none") {
+                            geocoderContainer.style.borderRadius = "16px 16px 0 0";
+                            
+                            // Perform the extended search
+                            const matchingEvents = extendedSearch(searchInput.value);
+                            
+                            // Display the extended search results
+                            displayExtendedResults(matchingEvents);
+                        } else {
+                            // Delete all existing search results
+                            const ul = searchResults.getElementsByTagName('ul')[0];
+                            ul.innerHTML = '';
+                            geocoderContainer.style.borderRadius = ""; // Reset to the original style or set it to your default value
+                        }
+                    }
+                });
+            });
+            
+        
+
+        // const geocoderContainer = document.getElementsByClassName("cesium-viewer-geocoderContainer")[0];
+        // const searchResults = geocoderContainer.getElementsByClassName("search-results")[0];
+        
+        // // Initialize a MutationObserver to watch for changes in the style attribute
+        // const observer = new MutationObserver(function(mutations) {
+        //   mutations.forEach(function(mutation) {
+        //     if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+        //       const displayStyle = searchResults.style.display;
+              
+        //       // If the search-results container is not 'display: none'
+        //       if (displayStyle !== "none") {
+        //         geocoderContainer.style.borderRadius = "16px 16px 0 0";
+        //       } else {
+        //         geocoderContainer.style.borderRadius = ""; // Reset to the original style or set it to your default value
+        //       }
+        //     }
+        //   });
+        // });
         
         // Configure the observer to watch for changes in the style attribute
         observer.observe(searchResults, { attributes: true });

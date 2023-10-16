@@ -68,6 +68,8 @@ function isCrimeActive(crimeType) {
 
 var crimeData = [];
 var fireData = [];
+window.crimeData = crimeData;
+window.fireData = fireData;
 
 function updateSidebar(events, clear=true) {
     // var sidebarContent = document.getElementsByClassName('sidebar-content')[0];
@@ -109,6 +111,7 @@ function updateSidebar(events, clear=true) {
             details = "";
             description = dateString;
             type = "Fire";
+            event.id = event.title.split('-')[0] + date;
         }
         
     
