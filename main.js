@@ -422,7 +422,7 @@ document.getElementById('important').addEventListener('click', function() {
 
 Promise.all([
     fetch('CrimeMap_geocoded.json').then(response => response.json()),
-    fetch('https://smartcity.tacc.utexas.edu/FireIncident/data/2022-08-08-FireMap.json').then(response => response.json())
+    fetch('https://raw.githubusercontent.com/urbaninfolab/FireIncidentData/master/api/v1/Austin/2022/08/08/FireMap.json').then(response => response.json())
 ]).then(([crimeResponse, fireResponse]) => {
     crimeData = crimeResponse;
     fireData = fireResponse.rss.channel.item;
