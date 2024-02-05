@@ -712,7 +712,7 @@ async function plotPoint(tileset, lat, lng, fireData) {
         let billboardEntity = viewer.entities.add({
             position: clampPosition,
             billboard: {
-                image: 'https://smartcity.tacc.utexas.edu/FireIncident/assets/images/fire.png',
+                image: 'https://raw.githubusercontent.com/urbaninfolab/FireIncidentFrontend/main/assets/images/fire.png',
                 scale: 0.1,
                 pixelSize: 10,
                 outlineWidth: 3,
@@ -823,7 +823,7 @@ handler.setInputAction(function(click) {
 
 function fetchAllData() {
 
-fetch('https://smartcity.tacc.utexas.edu/FireIncident/data/2022-08-08-FireMap.json')
+fetch('https://raw.githubusercontent.com/urbaninfolab/FireIncidentData/master/api/v1/Austin/2022/08/08/FireMap.json')
     .then(response => response.json())
     .then(data => {
 
