@@ -1058,7 +1058,7 @@ fetch('https://raw.githubusercontent.com/urbaninfolab/FireIncidentData/master/ap
 
             for(city in cities) {
                 let latlng = cities[city];
-                let jsonUrl = 'https://api.purpleair.com/v1/sensors?api_key=81D9ACDC-966F-11EC-B9BF-42010A800003&nwlat=' + 
+                let jsonUrl = 'https://api.purpleair.com/v1/sensors?api_key=9BF817AE-CE55-11ED-B6F4-42010A800007&nwlat=' + 
                 latlng[0] + '&selat=' + latlng[1] + '&nwlng=' + latlng[2] + '&selng=' + latlng[3] + '&fields=latitude,longitude,altitude,pm2.5_10minute';
                 let response = await fetch(jsonUrl);
                 let currentData = await response.json();
