@@ -26,6 +26,8 @@
           });
            viewer.scene.globe.depthTestAgainstTerrain = true;
 
+    // Initialize scale bar, north arrow, and timestamp
+    initializeMapControls();
 
     let cesiumTileset;  // Store reference to the Cesium tileset
     let googleTileset;  // Store reference to the Google tileset
@@ -152,15 +154,36 @@
 
 
   function getCesium3DTileFeatureDescription(feature) {
-    const propertyIds = feature.getPropertyIds();
-  
     let html = "";
-    propertyIds.forEach(function (propertyId) {
-      const value = feature.getProperty(propertyId);
-      if (defined(value)) {
-        html += `<tr><th>${propertyId}</th><td>${value}</td></tr>`;
-      }
-    });
+    
+    try {
+        if (feature && typeof feature.getPropertyIds === 'function') {
+            const propertyIds = feature.getPropertyIds();
+          
+            propertyIds.forEach(function (propertyId) {
+              const value = feature.getProperty(propertyId);
+              if (defined(value)) {
+                html += `<tr><th>${propertyId}</th><td>${value}</td></tr>`;
+              }
+            });
+        } else if (feature && typeof feature.getProperty === 'function') {
+            // Fallback: try common properties
+            const commonProps = ['name', 'addr:street', 'addr:city', 'addr:state', 'website'];
+            commonProps.forEach(function(propertyId) {
+                try {
+                    const value = feature.getProperty(propertyId);
+                    if (defined(value)) {
+                        html += `<tr><th>${propertyId}</th><td>${value}</td></tr>`;
+                    }
+                } catch (error) {
+                    // Skip this property if it causes an error
+                }
+            });
+        }
+    } catch (error) {
+        console.warn('Error accessing feature properties in getCesium3DTileFeatureDescription:', error);
+        html = '<tr><th>Error</th><td>Unable to load feature properties</td></tr>';
+    }
   
     if (html.length > 0) {
       html = `<table class="cesium-infoBox-defaultTable"><tbody>${html}</tbody></table>`;
@@ -175,29 +198,61 @@
     function getCesium3DTileFeatureName(feature) {
         let possibleIds = []; // Initialize as an empty array
       
-        const propertyIds = feature.getPropertyIds();
-        for (let i = 0; i < propertyIds.length; i++) {
-          const propertyId = propertyIds[i];
-          
-          if (/^name$/i.test(propertyId)) {
-            possibleIds[0] = feature.getProperty(propertyId);
-          } else if (/name/i.test(propertyId)) {
-            possibleIds[1] = feature.getProperty(propertyId);
-          }
+        // Check if feature has getPropertyIds method (for compatibility)
+        if (feature && typeof feature.getPropertyIds === 'function') {
+            try {
+                const propertyIds = feature.getPropertyIds();
+                for (let i = 0; i < propertyIds.length; i++) {
+                  const propertyId = propertyIds[i];
+                  
+                  if (/^name$/i.test(propertyId)) {
+                    possibleIds[0] = feature.getProperty(propertyId);
+                  } else if (/name/i.test(propertyId)) {
+                    possibleIds[1] = feature.getProperty(propertyId);
+                  }
+                }
+            } catch (error) {
+                console.warn('Error accessing feature properties:', error);
+            }
+        } else {
+            // Fallback: try common property names directly
+            try {
+                if (feature && typeof feature.getProperty === 'function') {
+                    // Try common name properties
+                    const commonNameProps = ['name', 'Name', 'NAME', 'title', 'Title'];
+                    for (let i = 0; i < commonNameProps.length; i++) {
+                        const value = feature.getProperty(commonNameProps[i]);
+                        if (value) {
+                            possibleIds[i] = value;
+                            break;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.warn('Error accessing feature property:', error);
+            }
         }
         
         // Try to assemble the street address, if possible
-        const houseNumber = feature.getProperty('addr:housenumber');
-        const street = feature.getProperty('addr:street');
-        if (houseNumber && street) {
-          possibleIds[2] = `${houseNumber} ${street}`;
+        try {
+            const houseNumber = feature.getProperty('addr:housenumber');
+            const street = feature.getProperty('addr:street');
+            if (houseNumber && street) {
+              possibleIds[2] = `${houseNumber} ${street}`;
+            }
+        } catch (error) {
+            console.warn('Error accessing address properties:', error);
         }
       
         // Assemble latitude-longitude string
-        const latitude = feature.getProperty('cesium#latitude');
-        const longitude = feature.getProperty('cesium#longitude');
-        if (latitude && longitude) {
-          possibleIds[3] = `${latitude}, ${longitude}`;
+        try {
+            const latitude = feature.getProperty('cesium#latitude');
+            const longitude = feature.getProperty('cesium#longitude');
+            if (latitude && longitude) {
+              possibleIds[3] = `${latitude}, ${longitude}`;
+            }
+        } catch (error) {
+            console.warn('Error accessing coordinate properties:', error);
         }
       
         // Return the first non-null, non-empty string from the possibleIds array
@@ -216,25 +271,69 @@
 
       function formatFeatureForSidebar(feature) {
         console.log(feature);
-        // Log all properties to the console
-        const propertyIds = feature.getPropertyIds();
-        for (let i = 0; i < propertyIds.length; i++) {
-            const propertyId = propertyIds[i];
-            console.log(`${propertyId}: ${feature.getProperty(propertyId)}`);
-            }
+        
+        // Check if this is a 3D tile feature or other type of object
+        const is3DTileFeature = feature && typeof feature.getProperty === 'function';
+        const isBillboard = feature && feature.primitive && feature.id;
+        
+        // Initialize variables with defaults
+        let name = "";
+        let city = "";
+        let houseNumber = "";
+        let state = "";
+        let street = "";
+        let postcode = "";
+        let website = "";
+        let wikipedia = "";
+        let phone = "";
+        let lat = "";
+        let lon = "";
+        
+        // Handle different feature types
+        if (is3DTileFeature) {
+            try {
+                // Log all properties to the console if getPropertyIds is available
+                if (typeof feature.getPropertyIds === 'function') {
+                    const propertyIds = feature.getPropertyIds();
+                    for (let i = 0; i < propertyIds.length; i++) {
+                        const propertyId = propertyIds[i];
+                        console.log(`${propertyId}: ${feature.getProperty(propertyId)}`);
+                    }
+                }
 
-                // Extract the relevant feature properties
-                const name = feature.getProperty("name");
-                const city = feature.getProperty("addr:city") || "";
-                const houseNumber = feature.getProperty("addr:housenumber") || "";
-                const state = feature.getProperty("addr:state") || "";
-                const street = feature.getProperty("addr:street") || "";
-                const postcode = feature.getProperty("addr:postcode") || "";
-                const website = feature.getProperty("website");
-                const wikipedia = feature.getProperty("wikipedia");
-                const phone = feature.getProperty("phone");
-                const lat = feature.getProperty("cesium#latitude") || "";
-                const lon = feature.getProperty("cesium#longitude") || "";
+                // Extract the relevant feature properties with error handling
+                name = feature.getProperty("name") || "";
+                city = feature.getProperty("addr:city") || "";
+                houseNumber = feature.getProperty("addr:housenumber") || "";
+                state = feature.getProperty("addr:state") || "";
+                street = feature.getProperty("addr:street") || "";
+                postcode = feature.getProperty("addr:postcode") || "";
+                website = feature.getProperty("website") || "";
+                wikipedia = feature.getProperty("wikipedia") || "";
+                phone = feature.getProperty("phone") || "";
+                lat = feature.getProperty("cesium#latitude") || "";
+                lon = feature.getProperty("cesium#longitude") || "";
+            } catch (error) {
+                console.warn('Error accessing feature properties in formatFeatureForSidebar:', error);
+            }
+        } else if (isBillboard && feature.id) {
+            // Handle billboard/entity features
+            try {
+                name = feature.id.name || "Map Feature";
+                if (feature.id.position) {
+                    const cartographic = Cesium.Cartographic.fromCartesian(feature.id.position._value || feature.id.position);
+                    lat = Cesium.Math.toDegrees(cartographic.latitude).toFixed(6);
+                    lon = Cesium.Math.toDegrees(cartographic.longitude).toFixed(6);
+                }
+            } catch (error) {
+                console.warn('Error extracting billboard properties:', error);
+                name = "Map Feature";
+            }
+        } else {
+            // Fallback for unknown feature types
+            name = "Unknown Feature";
+            console.warn('Unknown feature type:', feature);
+        }
               
                 // Initialize variables for display
                 let displayText = "";
@@ -304,10 +403,38 @@
 
 
   function populateAndOpenSidebar(pickedFeature, sidebarPaneId) {
+    
+    // Safety check for pickedFeature
+    if (!pickedFeature) {
+        console.warn('No feature provided to populateAndOpenSidebar');
+        return;
+    }
+
+    // Check if this is a 3D tile feature or other type of object
+    const is3DTileFeature = pickedFeature && typeof pickedFeature.getProperty === 'function';
+    const isBillboard = pickedFeature && pickedFeature.primitive && pickedFeature.id;
+    
+    console.log('Feature type - 3D Tile:', is3DTileFeature, 'Billboard/Entity:', isBillboard);
 
     $('#sidebar').removeClass('collapsed');
-    // Use property names as the sidebar title
-    document.getElementsByClassName("cesium-geocoder-input")[0].value = getCesium3DTileFeatureName(pickedFeature);
+    
+    // Use property names as the sidebar title (with error handling)
+    try {
+        let featureName = "Selected Feature";
+        
+        if (is3DTileFeature) {
+            featureName = getCesium3DTileFeatureName(pickedFeature) || "3D Building";
+        } else if (isBillboard && pickedFeature.id && pickedFeature.id.name) {
+            featureName = pickedFeature.id.name;
+        } else if (isBillboard) {
+            featureName = "Map Feature";
+        }
+        
+        document.getElementsByClassName("cesium-geocoder-input")[0].value = featureName;
+    } catch (error) {
+        console.warn('Error getting feature name:', error);
+        document.getElementsByClassName("cesium-geocoder-input")[0].value = "Selected Feature";
+    }
 
     // Remove the current active class from all sidebar panes
     let sidebarPanes = document.getElementsByClassName('sidebar-pane');
@@ -328,9 +455,27 @@
     // add image to event div
     var eventImage = document.createElement('img');
     // eventImage.src = 'https://perfume-proceed-photo-fifth.trycloudflare.com/30.37934_-97.66141.png';
-    eventImage.src = 'https://imagery.austindigitaltwin.com/image/' + pickedFeature.getProperty('cesium#latitude') + '/' + pickedFeature.getProperty('cesium#longitude') 
+    
+    // Safely get coordinates with error handling
+    let latitude = '';
+    let longitude = '';
+    try {
+        if (pickedFeature && typeof pickedFeature.getProperty === 'function') {
+            latitude = pickedFeature.getProperty('cesium#latitude') || '';
+            longitude = pickedFeature.getProperty('cesium#longitude') || '';
+        }
+    } catch (error) {
+        console.warn('Error getting coordinates from feature:', error);
+    }
+    
+    if (latitude && longitude) {
+        eventImage.src = 'https://imagery.austindigitaltwin.com/image/' + latitude + '/' + longitude;
+    } else {
+        eventImage.src = 'https://placehold.co/512';
+    }
+    
     eventImage.onerror = function() {
-        eventImage.src = 'https://via.placeholder.com/512';
+        eventImage.src = 'https://placehold.co/512';
     }
     eventImage.style = 'width:100%;object-fit: cover;height:320px;';
     eventImage.id = 'eventimage';
@@ -475,8 +620,17 @@ viewer.screenSpaceEventHandler.setInputAction(function onLeftClick(movement) {
 
         // Put a marker down in the middle of the selected feature
         // Extract the latitude and longitude properties from the picked feature
-        const lat = parseFloat(pickedFeature.getProperty('cesium#latitude'));
-        const lon = parseFloat(pickedFeature.getProperty('cesium#longitude'));
+        let lat = 0;
+        let lon = 0;
+        
+        try {
+            if (pickedFeature && typeof pickedFeature.getProperty === 'function') {
+                lat = parseFloat(pickedFeature.getProperty('cesium#latitude')) || 0;
+                lon = parseFloat(pickedFeature.getProperty('cesium#longitude')) || 0;
+            }
+        } catch (error) {
+            console.warn('Error getting coordinates for marker:', error);
+        }
 
         // Convert the latitude and longitude to Cartesian3 position
         const position = Cesium.Cartesian3.fromDegrees(lon, lat);
@@ -498,15 +652,23 @@ viewer.screenSpaceEventHandler.setInputAction(function onLeftClick(movement) {
 
 
         let foundHouse = null;
+        let address = ""; // Initialize address variable
 
         try {
-          // Try to extract address
-          address = `${pickedFeature.getProperty("addr:housenumber")} ${pickedFeature.getProperty("addr:street")}`;
+          // Try to extract address with error handling
+          if (pickedFeature && typeof pickedFeature.getProperty === 'function') {
+              const houseNumber = pickedFeature.getProperty("addr:housenumber") || "";
+              const street = pickedFeature.getProperty("addr:street") || "";
+              address = `${houseNumber} ${street}`.trim();
+          }
           console.log("Extracted address: " + address);
           // Search by address
-          foundHouse = housingData.find(house => house.streetAddress === address);
+          if (address && address.length > 0) {
+              foundHouse = housingData.find(house => house.streetAddress === address);
+          }
         } catch (err) {
           // Address not available, proceed to search by latitude and longitude
+          console.warn('Error extracting address:', err);
         }
       
         if (!foundHouse) {
@@ -720,7 +882,8 @@ async function plotPoint(tileset, lat, lng, fireData) {
                 verticalOrigin: Cesium.VerticalOrigin.CENTER,
                 disableDepthTestDistance: Number.POSITIVE_INFINITY,
             },
-
+            // Store the fire data in the entity
+            fireEventData: fireData
         });
 
 
@@ -761,47 +924,27 @@ let handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
 handler.setInputAction(function(click) {
     let pickedObject = viewer.scene.pick(click.position);
     if (Cesium.defined(pickedObject) && Cesium.defined(pickedObject.id) && pickedObject.id.id === billboardId) {
-        const cartesian33 = clampPosition;
-        const html3 = `
-        <button class="mapboxgl-popup-close-button" type="button" aria-label="Close popup">×</button>
-        <div>
-            <span>
-        <div style="
-            font-size: xx-large;
-            font-family: sans-serif;
-            text-align: center;
-            border-color: green;
-            border-radius: 20px;
-            color: black;
-        ">
-        <div class="location-info"> <span>${fireData.title}</span><BR>
-        </div>
-        </div>
-            Location: ${fireData.description.split('|')[0]}<br>
-            Publish Date: ${fireData.pubDate}<br>
-            <a id="moreButton" href="#" onclick="addMore()">More...</a>
-            <div id="more" style="display:none">
-                Temperature: ${hourlyData1.temperature}℉<br>
-                Forecast: ${hourlyData1.shortForecast}<br>
-                Wind Speed: ${hourlyData1.windSpeed}<br>
-                Wind Direction: ${hourlyData1.windDirection}<br>
-            </div>
-        </div>
-        `;
-        var newpopup = new CesiumPopup(viewer, {
-            position: cartesian33, 
-            html: html3, 
-            className: "earth-popup-common1", 
-            popPosition: "bottom"
-        }, action)
-        // Attach a close event to the button in the popup
-        document.querySelector('.mapboxgl-popup-close-button').addEventListener('click', () => {
-            newpopup.remove();
-        });
-        // Clicking anywhere off the popup when it is open will close it
-        viewer.screenSpaceEventHandler.setInputAction(() => {
-            newpopup.remove();
-        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+        // Use the same logic as the fires list
+        const fireEvent = pickedObject.id.fireEventData;
+        if (fireEvent) {
+            // Calculate coordinates for image
+            let imgLat, imgLng;
+            if (fireEvent.link) {
+                let lat_lng = fireEvent.link.replace('http://maps.google.com/maps?q=', '').split(',');
+                imgLat = parseFloat(lat_lng[0]).toFixed(5);
+                imgLng = parseFloat(lat_lng[1]).toFixed(5);
+            } else if (fireEvent.latitude && fireEvent.longitude) {
+                imgLat = fireEvent.latitude.toFixed(5);
+                imgLng = fireEvent.longitude.toFixed(5);
+            }
+            
+            // Call the shared fire event click handler (defined in main.js)
+            if (typeof handleFireEventClick === 'function') {
+                handleFireEventClick(fireEvent, imgLat, imgLng, null);
+            } else {
+                console.warn('handleFireEventClick function not available');
+            }
+        }
     } 
 }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
@@ -1396,4 +1539,125 @@ closePopupHandler.setInputAction(() => {
 
 
       });
+
+// Map Controls Functions
+function initializeMapControls() {
+    updateTimestamp();
+    updateScaleBar();
+    updateNorthArrow();
+    
+    // Update controls when camera moves
+    viewer.camera.moveEnd.addEventListener(function() {
+        updateScaleBar();
+        updateNorthArrow();
+    });
+    
+    // Update timestamp every minute
+    setInterval(updateTimestamp, 60000);
+}
+
+function updateTimestamp() {
+    const now = new Date();
+    const options = {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    };
+    const timestampText = now.toLocaleDateString('en-US', options);
+    document.getElementById('timestampText').textContent = timestampText;
+}
+
+function updateScaleBar() {
+    const canvas = viewer.canvas;
+    const scene = viewer.scene;
+    const camera = scene.camera;
+    const ellipsoid = scene.globe.ellipsoid;
+    
+    // Calculate the scale at the center bottom of the screen
+    const centerBottomPixel = new Cesium.Cartesian2(canvas.clientWidth / 2, canvas.clientHeight);
+    const centerBottomPosition = camera.pickEllipsoid(centerBottomPixel, ellipsoid);
+    
+    if (!centerBottomPosition) {
+        document.getElementById('scaleBarText').textContent = 'N/A';
+        return;
+    }
+    
+    // Get a position 60 pixels to the right (matching our scale bar line width)
+    const rightPixel = new Cesium.Cartesian2(canvas.clientWidth / 2 + 60, canvas.clientHeight);
+    const rightPosition = camera.pickEllipsoid(rightPixel, ellipsoid);
+    
+    if (!rightPosition) {
+        document.getElementById('scaleBarText').textContent = 'N/A';
+        return;
+    }
+    
+    // Calculate the distance between these two points
+    const distance = Cesium.Cartesian3.distance(centerBottomPosition, rightPosition);
+    
+    // Determine appropriate scale and units
+    let scaleText;
+    
+    if (distance >= 1000) {
+        // Use kilometers
+        const km = distance / 1000;
+        if (km >= 100) {
+            scaleText = Math.round(km / 100) * 100 + ' km';
+        } else if (km >= 10) {
+            scaleText = Math.round(km / 10) * 10 + ' km';
+        } else if (km >= 1) {
+            scaleText = Math.round(km) + ' km';
+        } else {
+            scaleText = Math.round(km * 10) / 10 + ' km';
+        }
+    } else {
+        // Use meters
+        if (distance >= 100) {
+            scaleText = Math.round(distance / 100) * 100 + ' m';
+        } else if (distance >= 10) {
+            scaleText = Math.round(distance / 10) * 10 + ' m';
+        } else {
+            scaleText = Math.round(distance) + ' m';
+        }
+    }
+    
+    document.getElementById('scaleBarText').textContent = scaleText;
+}
+
+function updateNorthArrow() {
+    const camera = viewer.camera;
+    const heading = camera.heading;
+    
+    // Convert heading to degrees and adjust for north arrow rotation
+    const headingDegrees = Cesium.Math.toDegrees(heading);
+    const rotationDegrees = -headingDegrees; // Negative because we want the arrow to point north
+    
+    const northArrow = document.getElementById('northArrow');
+    northArrow.style.transform = `rotate(${rotationDegrees}deg)`;
+}
+
+// Utility functions for controlling map overlays visibility
+function toggleMapOverlays(visible = true) {
+    const overlays = ['scaleBar', 'northArrow', 'timestamp'];
+    overlays.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.style.display = visible ? 'block' : 'none';
+        }
+    });
+}
+
+function hideMapOverlays() {
+    toggleMapOverlays(false);
+}
+
+function showMapOverlays() {
+    toggleMapOverlays(true);
+}
+
+// Make functions available globally for console access
+window.hideMapOverlays = hideMapOverlays;
+window.showMapOverlays = showMapOverlays;
+window.toggleMapOverlays = toggleMapOverlays;
       

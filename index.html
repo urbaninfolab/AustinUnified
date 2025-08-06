@@ -264,7 +264,153 @@ background-color: #66666627;
     stroke: #4285f4; /* if you also want to change the stroke color on hover */
 }
 
+/* Map Controls Container - Professional Bottom-Right Layout */
+.map-controls {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-end;
+    z-index: 999;
+}
 
+.scale-bar {
+    background-color: rgba(255, 255, 255, 0.85);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-family: 'Open Sans', sans-serif;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #202124;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2), 0 -1px 0px rgba(0,0,0,0.02);
+    border: none;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.scale-bar-line {
+    width: 50px;
+    height: 2px;
+    background: #202124;
+    border-radius: 1px;
+}
+
+.north-arrow {
+    background-color: rgba(255, 255, 255, 0.85);
+    border-radius: 20px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Open Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: #202124;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2), 0 -1px 0px rgba(0,0,0,0.02);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    transition: all 0.2s ease;
+    cursor: pointer;
+    border: none;
+    padding: 0;
+}
+
+.north-arrow:hover {
+    background: rgba(255, 255, 255, 1);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.north-arrow::before {
+    content: "N";
+    position: absolute;
+    z-index: 2;
+    font-weight: 700;
+}
+
+.north-arrow-pointer {
+    position: absolute;
+    top: 2px;
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-bottom: 12px solid #d32f2f;
+    z-index: 1;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+}
+
+.timestamp {
+    background-color: rgba(255, 255, 255, 0.85);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-family: 'Open Sans', sans-serif;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #202124;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2), 0 -1px 0px rgba(0,0,0,0.02);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    transition: all 0.2s ease;
+    cursor: pointer;
+    border: none;
+    white-space: nowrap;
+}
+
+.timestamp:hover {
+    background: rgba(255, 255, 255, 1);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 768px) {
+    .scale-bar {
+        bottom: 10px;
+        left: 10px;
+        font-size: 10px;
+        padding: 4px 12px;
+        gap: 6px;
+    }
+    
+    .scale-bar-line {
+        width: 40px;
+        height: 2px;
+    }
+    
+    .north-arrow {
+        top: 70px;
+        right: 10px;
+        width: 32px;
+        height: 32px;
+        font-size: 12px;
+    }
+    
+    .north-arrow-pointer {
+        top: 3px;
+        border-left: 4px solid transparent;
+        border-right: 4px solid transparent;
+        border-bottom: 10px solid #d32f2f;
+    }
+    
+    .timestamp {
+        bottom: 10px;
+        right: 10px;
+        font-size: 10px;
+        padding: 4px 12px;
+    }
+}
 
 </style>
 </head>
@@ -367,6 +513,25 @@ background-color: #66666627;
 
     <!-- <div id="map" class="sidebar-map"></div> -->
     <div id="cesiumContainer" style="position: absolute;width: 100%;height:100%;"></div>
+
+    <!-- Map Controls Container -->
+    <div class="map-controls">
+        <!-- North Arrow -->
+        <div id="northArrow" class="north-arrow">
+            <div class="north-arrow-pointer"></div>
+        </div>
+
+        <!-- Timestamp -->
+        <div id="timestamp" class="timestamp">
+            <div id="timestampText">Loading...</div>
+        </div>
+
+        <!-- Scale Bar -->
+        <div id="scaleBar" class="scale-bar">
+            <div id="scaleBarText">Loading...</div>
+            <div class="scale-bar-line"></div>
+        </div>
+    </div>
 
 
 

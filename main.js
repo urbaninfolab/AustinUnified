@@ -1,3 +1,139 @@
+// Shared function for handling fire event clicks (both from list and map)
+function handleFireEventClick(event, imgLat, imgLng, eventDiv) {
+    // Fly to the event location
+    if(event.latitude != null && event.longitude != null) {
+        viewer.camera.flyTo({
+            destination : Cesium.Cartesian3.fromDegrees(event.longitude, event.latitude, 1000.0),
+        });
+    } else if(event.link != null) {
+        var lat_lng = event.link.replace('http://maps.google.com/maps?q=', '').split(',')
+        viewer.camera.flyTo({
+            destination : Cesium.Cartesian3.fromDegrees(parseFloat(lat_lng[1]), parseFloat(lat_lng[0]), 1000.0),
+        });
+    }
+
+    console.log("yummers");
+
+    // Also, open up the sidebar and show the event details
+    // remove the current active from all sidebar panes
+    let sidebarPanes = document.getElementsByClassName('sidebar-pane');
+    
+    // get the id of the current sidebar pane
+    let sidebarPaneId = document.getElementsByClassName('sidebar-pane active')[0].id;
+
+    for (let i = 0; i < sidebarPanes.length; i++) {
+        sidebarPanes[i].className = 'sidebar-pane';
+    }
+    document.getElementById('event').className = 'sidebar-pane active';
+    
+    // clear the event div
+    document.getElementById('event').innerHTML = '<h1 class="sidebar-header"></h1>';
+
+    // add image to event div
+    var eventImage = document.createElement('img');
+    eventImage.src = 'https://imagery.austindigitaltwin.com/image/' + imgLat + '/' + imgLng;
+    eventImage.style = 'width:100%;object-fit: cover;height:320px;';
+    eventImage.id = 'eventimage';
+    document.getElementById('event').appendChild(eventImage);
+
+    // Clone the event div if available, otherwise create basic info
+    if (eventDiv) {
+        let eventDivCopy = eventDiv.cloneNode(true);
+        // replace the src of event div image "#eventimage"
+        document.getElementById('eventimage').src = eventDivCopy.getElementsByClassName('list-img')[0].getElementsByTagName('img')[0].src;
+        eventDivCopy.getElementsByClassName('list-img')[0].remove();
+        document.getElementById('event').appendChild(eventDivCopy);
+    } else {
+        // Create basic event info if no eventDiv available (from map click)
+        var eventInfoDiv = document.createElement('div');
+        eventInfoDiv.className = 'list-element';
+        
+        var textDiv = document.createElement('div');
+        textDiv.className = 'list-text';
+        
+        var nameP = document.createElement('p');
+        nameP.className = 'list-name';
+        nameP.textContent = event.title ? event.title.split('-').length > 1 ? event.title.split('-')[1] : event.title : 'Fire Incident';
+        
+        var addressP = document.createElement('p');
+        addressP.className = 'list-address';
+        addressP.textContent = event.description ? event.description.split('|')[0] : 'Location not available';
+        
+        var dateP = document.createElement('p');
+        dateP.className = 'list-description';
+        let dateString = event.pubDate ? new Date(event.pubDate).toLocaleString() : '';
+        let fireStatusText = event.active_status === 'yes' ? "Started" : "Closed";
+        dateP.innerHTML = `${event.active_status === 'yes' ? `<span style="color: green;">Active</span>` : `<span style="color: red;">Inactive</span>`} • ${fireStatusText} ${dateString}`;
+        
+        textDiv.appendChild(nameP);
+        textDiv.appendChild(addressP);
+        textDiv.appendChild(dateP);
+        eventInfoDiv.appendChild(textDiv);
+        
+        document.getElementById('event').appendChild(eventInfoDiv);
+    }
+
+    // shift cesium-geocoder-input cesium-geocoder-input-wide to the right 
+    // and add a back button
+    // Create the div wrapper for the back button
+    var backButtonDiv = document.createElement("div");
+    backButtonDiv.className = "back-button-div tooltip";
+    backButtonDiv.style = "top: 3px;opacity: 1;left: 10px;border: none;";
+
+    // Create the SVG element for the back button
+    var backButtonSVG = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    backButtonSVG.setAttribute("width", "32");
+    backButtonSVG.setAttribute("height", "32");
+    backButtonSVG.setAttribute("viewBox", "0 0 32 32");
+    backButtonSVG.classList.add("back-button");
+
+    var backPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    backPath.setAttribute("d", "M20 8 L8 16 L20 24");
+    backPath.setAttribute("stroke", "#666");
+    backPath.setAttribute("stroke-width", "3");
+    backPath.setAttribute("fill", "#666");
+    backButtonSVG.appendChild(backPath);
+
+    // Create tooltip for the back button
+    var backButtonTooltip = document.createElement("span");
+    backButtonTooltip.className = "tooltiptext tooltip-bottom";
+    backButtonTooltip.textContent = "Back";
+
+    // Append the SVG and tooltip to the div wrapper
+    backButtonDiv.appendChild(backButtonSVG);
+    backButtonDiv.appendChild(backButtonTooltip);
+
+    // Insert the back button before the Cesium geocoder input
+    var geocoderInput = document.querySelector('.cesium-geocoder-input');
+    var shiftAmount = "15px";
+    geocoderInput.style = "margin-left: " + shiftAmount + ";width: 235px !important; ";
+    
+    if(!document.querySelector('.back-button-div')) {
+        geocoderInput.parentNode.insertBefore(backButtonDiv, geocoderInput);
+    }
+
+    // make the back button return the active class to the previous sidebar pane
+    // and remove the back button (the id is stored in sidebarPaneId)
+    backButtonDiv.addEventListener('click', function() {
+        // remove the back button
+        backButtonDiv.remove();
+
+        geocoderInput.style = "";
+
+        // remove the current active from all sidebar panes
+        let sidebarPanes = document.getElementsByClassName('sidebar-pane');
+        
+        document.getElementsByClassName("cesium-geocoder-input")[0].value = "";
+
+        for (let i = 0; i < sidebarPanes.length; i++) {
+            sidebarPanes[i].className = 'sidebar-pane';
+        }
+
+        // add the active class to the previous sidebar pane
+        document.getElementById(sidebarPaneId).className = 'sidebar-pane active';
+    });
+}
+
 function getDangerRating(event) {
     let rating = 0.0;
     let pips = "";
@@ -156,7 +292,7 @@ function updateSidebar(events, clear=true) {
         imgDiv.className = 'list-img';
         var imgElem = document.createElement('img');
         // You'd typically want a placeholder image or a specific image for each event. For now, I'll just use a placeholder.
-        imgElem.src = 'https://via.placeholder.com/84'; // Update this path to your image
+        imgElem.src = 'https://placehold.co/84'; // Update this path to your image
         
         var imgLat;
         var imgLng;
@@ -168,13 +304,13 @@ function updateSidebar(events, clear=true) {
                 let lng = event.longitude.toFixed(5);
                 imgElem.src = 'https://imagery.austindigitaltwin.com/image/' + lat + '/' + lng;
                 imgElem.onerror = function() {
-                    imgElem.src = 'https://via.placeholder.com/84';
+                    imgElem.src = 'https://placehold.co/84';
                 }
                 imgLat = lat;
                 imgLng = lng;
             }
             catch(e) {
-                imgElem.src = 'https://via.placeholder.com/84';
+                imgElem.src = 'https://placehold.co/84';
                 console.log(e);
             }    
         } else if(event.link != null) {
@@ -184,13 +320,13 @@ function updateSidebar(events, clear=true) {
                 let lng = parseFloat(lat_lng[1]).toFixed(5);
                 imgElem.src = 'https://imagery.austindigitaltwin.com/image/' + lat + '/' + lng;
                 imgElem.onerror = function() {
-                    imgElem.src = 'https://via.placeholder.com/84';
+                    imgElem.src = 'https://placehold.co/84';
                 }
                 imgLat = lat;
                 imgLng = lng;
             }
             catch(e) {
-                imgElem.src = 'https://via.placeholder.com/84';
+                imgElem.src = 'https://placehold.co/84';
                 console.log(e);
             }
         } 
@@ -202,124 +338,7 @@ function updateSidebar(events, clear=true) {
 
         // on eventdiv click, zoom to event on cesium map
         eventDiv.addEventListener('click', function() {
-            if(event.latitude != null && event.longitude != null) {
-            viewer.camera.flyTo({
-                destination : Cesium.Cartesian3.fromDegrees(event.longitude, event.latitude, 1000.0),
-                // orientation: {
-                //     heading: Cesium.Math.toRadians(0.0),
-                //     pitch: Cesium.Math.toRadians(-35.0),
-                // }
-            });
-            } else if(event.link != null) {
-            var lat_lng = event.link.replace('http://maps.google.com/maps?q=', '').split(',')
-            viewer.camera.flyTo({
-                destination : Cesium.Cartesian3.fromDegrees(parseFloat(lat_lng[1]), parseFloat(lat_lng[0]), 1000.0),
-                // orientation: {
-                //     heading: Cesium.Math.toRadians(0.0),
-                //     pitch: Cesium.Math.toRadians(-35.0),
-                // }
-            });
-            }
-
-            console.log("yummers");
-
-            // Also, open up the sidebar and show the event details
-            // remove the current active from all sidebar panes
-            let sidebarPanes = document.getElementsByClassName('sidebar-pane');
-            
-            // get the id of the current sidebar pane
-            let sidebarPaneId = document.getElementsByClassName('sidebar-pane active')[0].id;
-
-            for (let i = 0; i < sidebarPanes.length; i++) {
-                sidebarPanes[i].className = 'sidebar-pane';
-            }
-            document.getElementById('event').className = 'sidebar-pane active';
-            
-            // clear the event div
-            document.getElementById('event').innerHTML = '<h1 class="sidebar-header"></h1>';
-
-            // add image to event div
-            var eventImage = document.createElement('img');
-            // eventImage.src = 'https://perfume-proceed-photo-fifth.trycloudflare.com/30.37934_-97.66141.png';
-            eventImage.src = 'https://imagery.austindigitaltwin.com/image/' + imgLat + '/' + imgLng;
-            eventImage.style = 'width:100%;object-fit: cover;height:320px;';
-            eventImage.id = 'eventimage';
-            document.getElementById('event').appendChild(eventImage);
-
-
-            let eventDivCopy = eventDiv.cloneNode(true);
-            // replace the src of event div image "#eventimage"
-            document.getElementById('eventimage').src = eventDivCopy.getElementsByClassName('list-img')[0].getElementsByTagName('img')[0].src;
-            eventDivCopy.getElementsByClassName('list-img')[0].remove();
-            document.getElementById('event').appendChild(eventDivCopy);
-
-            // shift cesium-geocoder-input cesium-geocoder-input-wide to the right 
-            // and add a back button
-            // Create the div wrapper for the back button
-            var backButtonDiv = document.createElement("div");
-            backButtonDiv.className = "back-button-div tooltip";
-            backButtonDiv.style = "top: 3px;opacity: 1;left: 10px;border: none;";
-
-            // Create the SVG element for the back button
-            var backButtonSVG = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-            backButtonSVG.setAttribute("width", "32");
-            backButtonSVG.setAttribute("height", "32");
-            backButtonSVG.setAttribute("viewBox", "0 0 32 32");
-            backButtonSVG.classList.add("back-button");
-
-            var backPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            backPath.setAttribute("d", "M20 8 L8 16 L20 24");
-            backPath.setAttribute("stroke", "#666");
-            backPath.setAttribute("stroke-width", "3");
-            backPath.setAttribute("fill", "#666");
-            backButtonSVG.appendChild(backPath);
-
-            // Create tooltip for the back button
-            var backButtonTooltip = document.createElement("span");
-            backButtonTooltip.className = "tooltiptext tooltip-bottom";
-            backButtonTooltip.textContent = "Back";
-
-            // Append the SVG and tooltip to the div wrapper
-            backButtonDiv.appendChild(backButtonSVG);
-            backButtonDiv.appendChild(backButtonTooltip);
-
-            // Insert the back button before the Cesium geocoder input
-            var geocoderInput = document.querySelector('.cesium-geocoder-input');
-            var shiftAmount = "15px";
-            geocoderInput.style = "margin-left: " + shiftAmount + ";width: 235px !important; ";
-            // geocoderInput.parentNode.insertBefore(backButtonDiv, geocoderInput);
-            
-            if(!document.querySelector('.back-button-div')) {
-                geocoderInput.parentNode.insertBefore(backButtonDiv, geocoderInput);
-            }
-            
-            // margin-left: 15px;
-            //width: 235px !important;
-
-            // make the back button return the active class to the previous sidebar pane
-            // and remove the back button (the id is stored in sidebarPaneId)
-            backButtonDiv.addEventListener('click', function() {
-                // remove the back button
-                backButtonDiv.remove();
-
-                geocoderInput.style = "";
-
-                // remove the current active from all sidebar panes
-                let sidebarPanes = document.getElementsByClassName('sidebar-pane');
-                
-                document.getElementsByClassName("cesium-geocoder-input")[0].value = "";
-
-                for (let i = 0; i < sidebarPanes.length; i++) {
-                    sidebarPanes[i].className = 'sidebar-pane';
-                }
-
-                // add the active class to the previous sidebar pane
-                document.getElementById(sidebarPaneId).className = 'sidebar-pane active';
-            }
-            );
-
- 
-
+            handleFireEventClick(event, imgLat, imgLng, eventDiv);
         });
 
 
@@ -351,9 +370,15 @@ document.getElementById('btnFires').addEventListener('click', function() {
     document.getElementsByClassName("cesium-geocoder-input")[0].value = "Fires";
     removeActiveClass();
     document.getElementById('home').className = 'sidebar-pane active';
+    
+    // Ensure eventsAccordion is in the correct location BEFORE updating sidebar
+    var eventsAccordion = document.getElementById('eventsAccordion');
+    var homePane = document.getElementById('home');
+    if (eventsAccordion && !homePane.contains(eventsAccordion)) {
+        homePane.appendChild(eventsAccordion);
+    }
+    
     updateSidebar(fireEvents);
-    // Move eventsAccordion element to under the current "#home"
-    $('#eventsAccordion').appendTo('#home');
 });
 
 document.getElementById('btnCrimes').addEventListener('click', function() {
@@ -364,9 +389,15 @@ document.getElementById('btnCrimes').addEventListener('click', function() {
     removeActiveClass();
     // add active class to home sidebar 
     document.getElementById('home').className = 'sidebar-pane active';
+    
+    // Ensure eventsAccordion is in the correct location BEFORE updating sidebar
+    var eventsAccordion = document.getElementById('eventsAccordion');
+    var homePane = document.getElementById('home');
+    if (eventsAccordion && !homePane.contains(eventsAccordion)) {
+        homePane.appendChild(eventsAccordion);
+    }
+    
     updateSidebar(crimeEvents);
-    // Move eventsAccordion element to under the current "#home"
-    $('#eventsAccordion').appendTo('#home');
 });
 
 document.getElementById('btnAirSensors').addEventListener('click', function() {
