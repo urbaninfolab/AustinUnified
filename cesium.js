@@ -1559,6 +1559,7 @@ function initializeMapControls() {
 function updateTimestamp() {
     const now = new Date();
     const options = {
+        year: 'numeric',
         month: 'short',
         day: 'numeric',
         hour: '2-digit',
